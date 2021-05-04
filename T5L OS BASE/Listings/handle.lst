@@ -1,0 +1,391 @@
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE HANDLE
+OBJECT MODULE PLACED IN .\Objects\handle.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE Sources\handle.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT
+                    -(.\Listings\handle.lst) TABS(2) OBJECT(.\Objects\handle.obj)
+
+line level    source
+
+   1          /******************************************************************************
+   2          * 文 件 名   : handle.c
+   3          * 版 本 号   : V1.0
+   4          * 作    者   : pinot
+   5          * 生成日期   : 2019年11月27日
+   6          * 功能描述   : 逻辑处理
+   7          * 修改历史   :
+   8          * 日    期   :
+   9          * 作    者   :
+  10          * 修改内容   :
+  11          ******************************************************************************/
+  12          
+  13          /*****************************************************************************
+  14          自定义头文件*/
+  15          #include "handle.h"
+  16          
+  17          
+  18          /*****************************************************************************
+  19          全局变量*/
+  20          //内部RAM
+  21          uint8_t value0F00[4] = {0};
+  22          uint8_t xp_status=0;
+  23          
+  24          //外部RAM
+  25          typedef struct dlt_645_8283
+  26          {
+  27              uint8_t st_byte1;//帧起始符
+  28              uint8_t st_byte2;//帧起始符
+  29              uint8_t lenth;//长度
+  30              uint8_t func;//类型
+  31              uint8_t addr1;//地址
+  32              uint8_t addr2;//地址  
+  33              uint8_t edata[250];//数据内容
+  34          }dl_t_645_8283_body;
+  35          dl_t_645_8283_body xdata s_dl_t_645_8283_body={0};
+  36          
+  37          #define FRAME_BUFFER_LEN 255
+  38          uint8_t xdata frame_buf[FRAME_BUFFER_LEN];//用来存取一帧数据
+  39          uint8_t xdata frame_buf1[FRAME_BUFFER_LEN]=0;//用来存取一帧数据
+  40          #define DLT_645_LEAST_LEN 7
+  41          
+  42          
+  43          //代码空间
+  44          uint8_t code CUart2[] = "Uart2Init Done!!!123";
+  45          uint8_t code CUart3[] = "Uart3Init Done!!!";
+  46          uint8_t code CUart4[] = "Uart4Init Done!!!";
+  47          uint8_t code CUart5[] = "Uart5Init Done!!!";
+  48          
+  49          //解析到一帧数据可能出现的情况
+  50          typedef enum frame_result
+  51          {
+  52              UNKNOWN,
+  53              OK,           //成功找到一帧
+  54              UNFINISHED,   //未接收完成
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 2   
+
+  55              ERROR,        //不满足此协议
+  56          }frame_result_t;
+  57          
+  58          //定义协议类型
+  59          typedef enum protocol_type
+  60          {
+  61              PROTOCOL_UNKNOWN,
+  62              PROTOCOL_DL_T_698,
+  63              PROTOCOL_DL_T_645,
+  64              PROTOCOL_OTHER,
+  65          }protocol_type_t;
+  66          
+  67          /*****************************************************************************
+  68          控制亮度*/
+  69          void SetBlight(uint8_t n)
+  70          {
+  71   1      //  uint8_t temp[4]={0};
+  72   1        WriteDGUS(DHW_LEDCFG,(uint8_t *)&n,sizeof(n));
+  73   1      //  do
+  74   1      //  {
+  75   1      //    DelayMs(5);
+  76   1      //    ReadDGUS(DHW_LEDNOW,temp,2);//设置亮度与获取到的亮度不一致
+  77   1      //  }while(!(temp[1]==n));
+  78   1      }
+  79          /*****************************************************************************
+  80          控制伴音*/
+  81          void SetVoice(int8_t status)
+  82          {
+  83   1        uint8_t temp[4]={0};
+  84   1        ReadDGUS(DHW_SYSCFG,temp,sizeof(temp));
+  85   1        temp[0]=0x5A;
+  86   1        if(1==status){temp[3]&=0xF7;}
+  87   1        else if(2==status){temp[3]|=0x08;}
+  88   1        else{return;}
+  89   1        WriteDGUS(DHW_SYSCFG,temp,sizeof(temp));
+  90   1        do
+  91   1        {
+  92   2          DelayMs(5);
+  93   2          ReadDGUS(DHW_SYSCFG,temp,1);
+  94   2        }while(temp[0]!=0);
+  95   1      }
+  96          /*****************************************************************************
+  97          判断按键值是否有上传*/
+  98          int8_t GetValue0F00(void)
+  99          {
+ 100   1        uint8_t cleanData[4]={0};
+ 101   1        ReadDGUS(DHW_0F00,value0F00,sizeof(value0F00));
+ 102   1        if(0x5A == value0F00[0])
+ 103   1        {
+ 104   2          WriteDGUS(DHW_0F00,cleanData,sizeof(cleanData));
+ 105   2          return 1;
+ 106   2        }
+ 107   1        return 0;
+ 108   1      }
+ 109          /*****************************************************************************
+ 110          串口初次打印*/
+ 111          void InitUartSend(void)
+ 112          {
+ 113   1        Uart2SendStr(CUart2,sizeof(CUart2));
+ 114   1      //  Uart3SendStr(CUart3,sizeof(CUart3));
+ 115   1      //  Uart4SendStr(CUart4,sizeof(CUart4));
+ 116   1      //  Uart5SendStr(CUart5,sizeof(CUart5));
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 3   
+
+ 117   1      }
+ 118          /*****************************************************************************
+ 119          跳转指定页面*/
+ 120          void JumpPage(uint16_t pageId)
+ 121          {
+ 122   1        uint8_t temp[4]={0x5A,0x01,0,0};
+ 123   1        temp[2]=(uint8_t)(pageId>>8);
+ 124   1        temp[3]=pageId;
+ 125   1        WriteDGUS(DHW_SPAGE,temp,sizeof(temp));
+ 126   1        do
+ 127   1        {
+ 128   2          DelayMs(5);
+ 129   2          ReadDGUS(DHW_SPAGE,temp,1);
+ 130   2        }while(temp[0]!=0);
+ 131   1      }
+ 132          
+ 133          /*****************************************************************************
+ 134          按键按压之后处理流程*/
+ 135          void TouchHandle(void)
+ 136          {
+ 137   1        uint8_t temp[16]={0};
+ 138   1        uint16_t flag=0;
+ 139   1        uint16_t iconid=0;
+ 140   1        uint16_t getDar=0;
+ 141   1        getDar = value0F00[1]<<8|value0F00[2];
+ 142   1        LOG((uint8_t *)&getDar,sizeof(getDar));
+ 143   1        
+ 144   1        s_dl_t_645_8283_body.st_byte1=0x5A;
+ 145   1        s_dl_t_645_8283_body.st_byte2=0xA5;
+ 146   1        s_dl_t_645_8283_body.lenth=value0F00[3]*2+3;  
+ 147   1        s_dl_t_645_8283_body.func=0x83; 
+ 148   1        s_dl_t_645_8283_body.addr1=value0F00[1];
+ 149   1        s_dl_t_645_8283_body.addr2=value0F00[2];
+ 150   1        ReadDGUS(getDar,(uint8_t *)&s_dl_t_645_8283_body.edata[0],value0F00[3]*2);
+ 151   1        Uart2SendStr((uint8_t *)&s_dl_t_645_8283_body,s_dl_t_645_8283_body.lenth+3);
+ 152   1      
+ 153   1      //  switch(getDar)
+ 154   1      //  {
+ 155   1      //    default:
+ 156   1      //    break;
+ 157   1      //  }
+ 158   1      }
+ 159          
+ 160          /*****************************************************************************
+ 161          功能：回传数据*/
+ 162          void dlt645_handle(void)
+ 163          {
+ 164   1        uint16_t ADDR=0;
+ 165   1      
+ 166   1        ADDR = ((uint16_t)(s_dl_t_645_8283_body.addr1))<<8 | s_dl_t_645_8283_body.addr2;
+ 167   1      
+ 168   1        if(s_dl_t_645_8283_body.func == 0x82)
+ 169   1        {
+ 170   2          WriteDGUS(ADDR,(uint8_t *)&(s_dl_t_645_8283_body.edata),s_dl_t_645_8283_body.lenth-3);
+ 171   2          s_dl_t_645_8283_body.lenth=3;
+ 172   2          s_dl_t_645_8283_body.addr1=0x4F;
+ 173   2          s_dl_t_645_8283_body.addr2=0x4B;
+ 174   2          Uart2SendStr((uint8_t *)&s_dl_t_645_8283_body,s_dl_t_645_8283_body.lenth+3);
+ 175   2        }
+ 176   1        else if(s_dl_t_645_8283_body.func == 0x83)
+ 177   1        {
+ 178   2          ReadDGUS(ADDR,(uint8_t *)&(s_dl_t_645_8283_body.edata[1]),s_dl_t_645_8283_body.edata[0]*2);
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 4   
+
+ 179   2          s_dl_t_645_8283_body.lenth+=s_dl_t_645_8283_body.edata[0]*2;
+ 180   2          Uart2SendStr((uint8_t *)&s_dl_t_645_8283_body,s_dl_t_645_8283_body.lenth+3);
+ 181   2        }
+ 182   1        
+ 183   1      }
+ 184          /*****************************************************************************
+ 185          功能:检索一帧数据将值赋给结构体*/
+ 186          uint8_t parse_dlt645_frame(uint8_t *p_frame, uint16_t frame_len, uint8_t* sframe_body)
+ 187          {
+ 188   1          uint16_t temp16_t = 0;//一帧数据的总长度
+ 189   1          uint16_t i = 0;
+ 190   1      
+ 191   1          if(1){
+ 192   2              memcpy(sframe_body,p_frame, frame_len);
+ 193   2              return 1;
+ 194   2          }
+ 195   1          return 0;
+ 196   1      } 
+ 197          /*****************************************************************************
+ 198          功能:从缓存区buf中检索dlt645帧数据*/
+ 199          /*
+ 200           * 将一帧数据读取到frame_buf中     
+ 201           * line:缓存区0x7F开头的数据
+ 202           * out:将捡出来的帧复制到该数组中
+ 203           * frame_len:捡出来的帧的长度，
+ 204           * line_len:缓存区buf中0x7F开头的数据长度
+ 205           **/
+ 206          frame_result_t find_dlt645_frame(uint8_t* line, uint8_t* out, uint16_t* frame_len, uint16_t line_len) {
+ 207   1          uint16_t frame_length = 0;//一帧数据的总长度
+ 208   1          uint16_t temp_len = 0;
+ 209   1      
+ 210   1          if (line_len < DLT_645_LEAST_LEN) {
+ 211   2              return UNFINISHED;
+ 212   2          }
+ 213   1          //判断第0位
+ 214   1          if (line[0] != 0x5A) {  
+ 215   2              return ERROR;
+ 216   2          }
+ 217   1          if (line[1] != 0xA5) {  
+ 218   2              return ERROR;
+ 219   2          }   
+ 220   1          frame_length = line[2]+3;
+ 221   1          
+ 222   1          if (frame_length <= line_len) {
+ 223   2                  //检到一帧数据                
+ 224   2                  for (temp_len = 0; temp_len < frame_length; temp_len ++) {
+ 225   3                      out[temp_len] = *line;
+ 226   3                      line++;
+ 227   3                  }
+ 228   2                  *frame_len = frame_length;
+ 229   2                  return OK;
+ 230   2          } else {
+ 231   2              //数据还没接收完整
+ 232   2              return UNFINISHED;
+ 233   2          }
+ 234   1      }
+ 235          
+ 236          /*****************************************************************************
+ 237          功能:协议数据解析*/
+ 238          void ParseBuffer(void)
+ 239          {
+ 240   1          uint16_t frame_length = 0;//一帧数据的总长度
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 5   
+
+ 241   1          uint16_t i = 0, temp_len = 0;
+ 242   1          uint8_t has_content = 0;//buf中是否有数据
+ 243   1          uint8_t frame_error = 0;//缓存区当前的数据对所有协议都不满足
+ 244   1          uint8_t*  p_buf= Uart2_Rx;
+ 245   1          protocol_type_t protl_type = PROTOCOL_UNKNOWN;
+ 246   1          frame_result_t find_frame_re = UNKNOWN;
+ 247   1      
+ 248   1          //用来保存每个协议解析后的结果 
+ 249   1          //frame_results[0] 保存PROTOCOL_DL_T_645协议解析结果
+ 250   1          //frame_results[1] 保存PROTOCOL_DL_T_698协议解析结果
+ 251   1          frame_result_t frame_results[2] = {UNKNOWN, UNKNOWN}; 
+ 252   1      
+ 253   1          has_content = uart2_rx_count > 2;
+ 254   1          while (has_content) {
+ 255   2              p_buf = Uart2_Rx;
+ 256   2              //检索0x5A开头的数据
+ 257   2              while (*p_buf != 0x5A && p_buf < Uart2_Rx + uart2_rx_count) {
+ 258   3                  p_buf ++;
+ 259   3              }
+ 260   2              if (p_buf == Uart2_Rx + uart2_rx_count) {
+ 261   3                  //检索当前包数据，都不包含，清空
+ 262   3                  uart2_rx_count = 0;
+ 263   3                  break;
+ 264   3              }
+ 265   2              //Uart4_Rx中剩余的数据长度
+ 266   2              temp_len = uart2_rx_count - (p_buf - Uart2_Rx);
+ 267   2      
+ 268   2              //以下处理不包含校验
+ 269   2              switch(protl_type) {
+ 270   3                  case PROTOCOL_UNKNOWN:
+ 271   3                      memset(frame_buf,0,sizeof(frame_buf));
+ 272   3                      find_frame_re = UNKNOWN;
+ 273   3                      frame_error = 0;
+ 274   3                      frame_length = 0;
+ 275   3                      for (i = 0; i < 3; i ++) {
+ 276   4                          frame_results[i] = UNKNOWN;
+ 277   4                      }
+ 278   3                      
+ 279   3                  case PROTOCOL_DL_T_645:
+ 280   3                      find_frame_re = find_dlt645_frame(p_buf, frame_buf, &frame_length, temp_len);
+ 281   3      
+ 282   3                      frame_results[0] = find_frame_re;
+ 283   3                      if (find_frame_re == OK) {
+ 284   4                            if (parse_dlt645_frame(frame_buf, frame_length, (uint8_t *)&s_dl_t_645_8283_body)) {
+ 285   5                                //解析到一包有效数据
+ 286   5                              dlt645_handle();
+ 287   5                              memset(&s_dl_t_645_8283_body, 0, sizeof(dl_t_645_8283_body));
+ 288   5                            }
+ 289   4                            break;
+ 290   4                      }
+ 291   3      
+ 292   3                  case PROTOCOL_OTHER:
+ 293   3                      //此处添加其他协议解析
+ 294   3                      //break;
+ 295   3                      
+ 296   3                  default :
+ 297   3                      if (frame_results[0] == ERROR ) {
+ 298   4                          //缓存区的数据不满足现有协议的解析
+ 299   4                          //继续找下一个0x7F起始符
+ 300   4                          p_buf ++;//跳过当前的0x7F
+ 301   4                          //检索0x7F开头的数据
+ 302   4                          while (*p_buf != 0x5A && p_buf < Uart2_Rx + uart2_rx_count) {
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 6   
+
+ 303   5                              p_buf ++;
+ 304   5                          }
+ 305   4                          
+ 306   4                          if (p_buf == Uart2_Rx + uart2_rx_count) {
+ 307   5                              //检索当前包数据，都不包含，清空
+ 308   5                              uart2_rx_count = 0;
+ 309   5                              break;
+ 310   5                          }
+ 311   4      
+ 312   4                          //找到下一条0x5A开头的数据帧
+ 313   4                          frame_error = 1;
+ 314   4                      }
+ 315   3                      break;
+ 316   3              }
+ 317   2      
+ 318   2              //当成功检索到一帧数据或缓存区的数据不满足现有协议的解析
+ 319   2              //buf中剩余的有效数据前移
+ 320   2              if (find_frame_re == OK || frame_error) {
+ 321   3                  //uart_rcvd_buf剩余的数据长度
+ 322   3                  temp_len = uart2_rx_count - (p_buf - Uart2_Rx) - frame_length;
+ 323   3                  if (temp_len > 0) {
+ 324   4                      //当前uart_rcvd_buf中剩余的数据前移
+ 325   4                      for (i = 0; i < temp_len; i ++) {
+ 326   5                          Uart2_Rx[i] = *(p_buf + frame_length + i);
+ 327   5                          *(p_buf + frame_length + i) = 0x00;
+ 328   5                      }
+ 329   4                      has_content = 1;//继续循环解析
+ 330   4                  } else {
+ 331   4                      //解析过的位清空
+ 332   4                      for (i = 0; i < (p_buf - Uart2_Rx) + frame_length; i ++) {
+ 333   5                          Uart2_Rx[i] = 0x00;
+ 334   5                      }
+ 335   4                      has_content = 0;
+ 336   4                  }
+ 337   3                  uart2_rx_count = temp_len;
+ 338   3              } else {
+ 339   3                  has_content = 0;
+ 340   3              }
+ 341   2          }
+ 342   1      }
+ 343          
+ 344          
+ 345          /*****************************************************************************
+ 346          主流程*/
+ 347          void HandleProc(void)
+ 348          {
+ 349   1          if(GetValue0F00())
+ 350   1          {
+ 351   2            TouchHandle();
+ 352   2          }
+ 353   1          ParseBuffer();
+ 354   1      }
+*** WARNING C294 IN LINE 195 OF Sources\handle.c: unreachable code
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1856    ----
+   CONSTANT SIZE    =    105    ----
+   XDATA SIZE       =    771      80
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+C51 COMPILER V9.57.0.0   HANDLE                                                            05/03/2021 13:40:35 PAGE 7   
+
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)
