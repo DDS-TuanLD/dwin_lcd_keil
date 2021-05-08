@@ -8,6 +8,11 @@
 #include "user_fifo.h"
 #include "lcd_handler.h"
 
+void test(){
+	uint8_t t[5] = "hello";
+	WriteDGUS(0x3000, t, 5);
+}
+
 void main(void)
 {
   InitCPU();
@@ -20,6 +25,7 @@ void main(void)
 		lcd_handler_uart_data_reiv_process();
 		lcd_send_uart_data_process();
 		lcd_update_home_para();
+		//test();
     //HandleProc();
   }
 }

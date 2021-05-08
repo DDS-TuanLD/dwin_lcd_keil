@@ -419,6 +419,11 @@
               <FileType>1</FileType>
               <FilePath>.\Sources\tstring.c</FilePath>
             </File>
+            <File>
+              <FileName>uart_handler.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\Sources\uart_handler.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

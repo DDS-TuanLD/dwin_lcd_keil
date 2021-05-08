@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/04/2021 14:02:50 PAGE 1   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/08/2021 13:18:31 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE USER_FIFO
@@ -62,7 +62,7 @@ line level    source
   52          
   53          uint16_t user_fifo_get_number_bytes_written(){
   54   1          return user_fifo.num_bytes_written;
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/04/2021 14:02:50 PAGE 2   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/08/2021 13:18:31 PAGE 2   
 
   55   1      }
   56          

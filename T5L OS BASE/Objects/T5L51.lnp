@@ -8,7 +8,8 @@
 ".\Objects\crc16.obj",
 ".\Objects\user_fifo.obj",
 ".\Objects\lcd_handler.obj",
-".\Objects\tstring.obj" 
+".\Objects\tstring.obj",
+".\Objects\uart_handler.obj" 
 TO ".\Objects\T5L51" 
 PRINT(".\Listings\T5L51.m51") RAMSIZE(256) 
 XDATA( 0X8000-0XFFFF )

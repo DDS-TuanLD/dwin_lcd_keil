@@ -2,17 +2,29 @@
 #define __LCD_HANDLER_H__
 #include "sys.h"
 
-#define LCD_CALL_SCENE_CMD	0x2000
-#define LCD_UPDATE_TEM_CMD	0x2010
-#define LCD_UPDATE_HUM_CMD 	0x2020
-#define LCD_UPDTE_TIME_CMD	0x2030
+#define LCD_RESET_MODULE_CMD				0x0000
+
+#define LCD_CALL_SCENE_CMD					0x2000
+#define LCD_UPDATE_SENSOR_PARA_CMD	0x2010
+#define LCD_UPDTE_TIME_CMD					0x2020
 
 #define LCD_CALL_SCENE_ADR  0x5000
-#define LCD_UPDATE_TEM_ADR	0x5100
-#define LCD_UPDATE_HUM_ADR 	0x5200
-#define LCD_UP_TIME_MI_ADR	0x5300
-#define LCD_UP_TIME_SC_ADR  0x5400
-#define LCD_UPDTE_TIME_ADR	0x5500
+
+#define LCD_UPDATE_TEM_ADR		0x5100
+#define LCD_DISPLAY_TEM_ADR_O 0x5110
+#define LCD_DISPLAY_TEM_ADR_I 0x5120
+#define LCD_DISPLAY_TEM_ADR_D 0x5130
+
+#define LCD_UPDATE_HUM_ADR 			0x5200
+#define LCD_DISPLAY_HUM_ADR_I 	0x5210
+#define LCD_DISPLAY_HUM_ADR_D 	0x5220
+
+#define LCD_UPDTE_TIME_ADR			0x5300
+#define LCD_DISPLAY_TIME_H_ADR	0x5310
+#define LCD_DISPLAY_TIME_M_ADR  0x5320
+
+#define LCD_RESET_MODULE_ADR		0x6000
+
 #define LCD_SET_PIC_DISPLAY 0x0084
 
 #define LCD_TEM_SAVE_ADR		0x000000
@@ -44,12 +56,15 @@ typedef struct {
 	uint8_t dt[UART_DATA_MAX_LEN];
 	uint8_t len;
 	uint8_t flag;
+	uint8_t sent_count;
 }uart_mess_t;
 
 typedef struct{
 	uint8_t dt_len;
 	uint8_t dt[UART_DATA_MAX_LEN - 8];
 }uart_parse_data;
+
+extern uart_mess_t uart_last_mess_sent;
 
 extern void lcd_para_init();
 extern void lcd_handler_uart_data_reiv_process();

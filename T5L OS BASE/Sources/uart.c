@@ -62,10 +62,11 @@ void UART2_ISR_PC(void)    interrupt 4
 			res=SBUF0;
 			// Uart2_Rx[uart2_rx_count]=res; 
 			// uart2_rx_count++;
-      user_fifo_push(res);
-			if (user_fifo_get_number_bytes_written() >= MAX_QUEUE_LEN) {
-				user_fifo_reset();
+			if (user_fifo_get_number_bytes_written() == MAX_QUEUE_LEN) {
+				user_fifo_pop();
 			}
+      user_fifo_push(res);
+			
 			RI0=0;       
 	}
 	if(TI0==1)

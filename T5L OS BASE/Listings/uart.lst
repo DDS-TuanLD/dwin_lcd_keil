@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   UART                                                              05/04/2021 14:02:50 PAGE 1   
+C51 COMPILER V9.57.0.0   UART                                                              05/08/2021 13:18:31 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE UART
@@ -62,7 +62,7 @@ line level    source
   52   1      }
   53          
   54          void UART2_ISR_PC(void)    interrupt 4
-C51 COMPILER V9.57.0.0   UART                                                              05/04/2021 14:02:50 PAGE 2   
+C51 COMPILER V9.57.0.0   UART                                                              05/08/2021 13:18:31 PAGE 2   
 
   55          {
   56   1        uint8_t res = 0;
@@ -74,231 +74,232 @@ line level    source
   62   2            res=SBUF0;
   63   2            // Uart2_Rx[uart2_rx_count]=res; 
   64   2            // uart2_rx_count++;
-  65   2            user_fifo_push(res);
-  66   2            if (user_fifo_get_number_bytes_written() >= MAX_QUEUE_LEN) {
-  67   3              user_fifo_reset();
-  68   3            }
-  69   2            RI0=0;       
-  70   2        }
-  71   1        if(TI0==1)
-  72   1        {
-  73   2            TI0=0;
-  74   2            uart2_busy=0;
-  75   2        }
-  76   1      //  WDT_RST();
-  77   1        EA=1;
-  78   1      }
-  79          
-  80          /*****************************************************************************
-  81          ����3����*/
-  82          void Uart3Init(void)
-  83          {
-  84   1        P0MDOUT    |= 0xC0;
-  85   1        MUX_SEL    |= 0x20;
-  86   1        uart3_busy = 0;
-  87   1        uart3_rx_count = 0;
-  88   1        SCON1      = 0xD0;
-  89   1        SREL1H     = 0x03;        /*1024-FOSC/(32*������)*/
-  90   1        SREL1L     = 0xC8;
-  91   1        IEN2       = 0x01;
-  92   1      }
-  93          /*****************************************************************************
-  94          ����3�����ֽ�*/
-  95          void Uart3SendByte(uint8_t dat)
-  96          {
-  97   1        while(uart3_busy==1);
-  98   1        uart3_busy=1;
-  99   1        SBUF1 = dat;
- 100   1      }
- 101          //ֱ��д�룬����Ҫ�жϲ�ѯ
- 102          //{
- 103          //  SBUF1 = dat;
- 104          //  while((SCON1&0x02)==0);
- 105          //  SCON1 &=0xFD;
+  65   2            if (user_fifo_get_number_bytes_written() == MAX_QUEUE_LEN) {
+  66   3              user_fifo_pop();
+  67   3            }
+  68   2            user_fifo_push(res);
+  69   2            
+  70   2            RI0=0;       
+  71   2        }
+  72   1        if(TI0==1)
+  73   1        {
+  74   2            TI0=0;
+  75   2            uart2_busy=0;
+  76   2        }
+  77   1      //  WDT_RST();
+  78   1        EA=1;
+  79   1      }
+  80          
+  81          /*****************************************************************************
+  82          ����3����*/
+  83          void Uart3Init(void)
+  84          {
+  85   1        P0MDOUT    |= 0xC0;
+  86   1        MUX_SEL    |= 0x20;
+  87   1        uart3_busy = 0;
+  88   1        uart3_rx_count = 0;
+  89   1        SCON1      = 0xD0;
+  90   1        SREL1H     = 0x03;        /*1024-FOSC/(32*������)*/
+  91   1        SREL1L     = 0xC8;
+  92   1        IEN2       = 0x01;
+  93   1      }
+  94          /*****************************************************************************
+  95          ����3�����ֽ�*/
+  96          void Uart3SendByte(uint8_t dat)
+  97          {
+  98   1        while(uart3_busy==1);
+  99   1        uart3_busy=1;
+ 100   1        SBUF1 = dat;
+ 101   1      }
+ 102          //ֱ��д�룬����Ҫ�жϲ�ѯ
+ 103          //{
+ 104          //  SBUF1 = dat;
+ 105          //  while((SCON1&0x02)==0);
  106          //  SCON1 &=0xFD;
- 107          //}
- 108          /*****************************************************************************
- 109          ����3�����ַ���*/
- 110          void Uart3SendStr(uint8_t *pstr,uint8_t strlen)
- 111          {
- 112   1        if((NULL == pstr)||(0 == strlen))
- 113   1        {
- 114   2          return;
- 115   2        }
- 116   1        while(strlen--)
-C51 COMPILER V9.57.0.0   UART                                                              05/04/2021 14:02:50 PAGE 3   
+ 107          //  SCON1 &=0xFD;
+ 108          //}
+ 109          /*****************************************************************************
+ 110          ����3�����ַ���*/
+ 111          void Uart3SendStr(uint8_t *pstr,uint8_t strlen)
+ 112          {
+ 113   1        if((NULL == pstr)||(0 == strlen))
+ 114   1        {
+ 115   2          return;
+ 116   2        }
+C51 COMPILER V9.57.0.0   UART                                                              05/08/2021 13:18:31 PAGE 3   
 
- 117   1        {
- 118   2          Uart3SendByte(*pstr);
- 119   2          pstr++;
- 120   2        }  
- 121   1      }
- 122          /*****************************************************************************
- 123          ����3�����ж�*/
- 124          void UART3_ISR_PC(void)    interrupt 16
- 125          {
- 126   1        uint8_t res=0;
- 127   1        EA=0;
- 128   1        if(SCON1&0x01)
- 129   1        {
- 130   2          res=SBUF1;
- 131   2          Uart3_Rx[uart3_rx_count]=res; 
- 132   2          uart3_rx_count++;
- 133   2          SCON1 &= 0xFE;
+ 117   1        while(strlen--)
+ 118   1        {
+ 119   2          Uart3SendByte(*pstr);
+ 120   2          pstr++;
+ 121   2        }  
+ 122   1      }
+ 123          /*****************************************************************************
+ 124          ����3�����ж�*/
+ 125          void UART3_ISR_PC(void)    interrupt 16
+ 126          {
+ 127   1        uint8_t res=0;
+ 128   1        EA=0;
+ 129   1        if(SCON1&0x01)
+ 130   1        {
+ 131   2          res=SBUF1;
+ 132   2          Uart3_Rx[uart3_rx_count]=res; 
+ 133   2          uart3_rx_count++;
  134   2          SCON1 &= 0xFE;
- 135   2        }
- 136   1        if(SCON1&0x02)
- 137   1        {
- 138   2          SCON1&=0xFD;
+ 135   2          SCON1 &= 0xFE;
+ 136   2        }
+ 137   1        if(SCON1&0x02)
+ 138   1        {
  139   2          SCON1&=0xFD;
- 140   2          uart3_busy=0;
- 141   2        }    
- 142   1        WDT_RST();
- 143   1        EA=1;
- 144   1      }
- 145          
- 146          ///*****************************************************************************
- 147          //����4����*/
- 148          void Uart4Init(void)
- 149          {
- 150   1        uart4_rx_count=0;
- 151   1        SCON2T     = 0x80;        /*����UART4����*/
- 152   1        SCON2R     = 0x80;        /*����UART4����*/
- 153   1        BODE2_DIV_H= 0x00;        /*FCLK/(8*DIV)*/
- 154   1        BODE2_DIV_L= 0xe0;
- 155   1        //ES2T=1;
- 156   1        ES2R=1;
- 157   1      }
- 158          /*****************************************************************************
- 159          ����4�����ֽ�*/
- 160          void Uart4SendByte(uint8_t dat)
- 161          {
- 162   1        SBUF2_TX = dat;    
- 163   1        while((SCON2T&0x01) == 0); 
- 164   1        SCON2T &= 0xFE;  
- 165   1      }
- 166          
- 167          void Uart4SendStr(uint8_t *pstr,uint8_t strlen)
- 168          {
- 169   1        if((NULL == pstr)||(0 == strlen))
- 170   1        {
- 171   2          return;
- 172   2        }
- 173   1      //  P0_0 = 1;
- 174   1        while(strlen--)
- 175   1        {
- 176   2          Uart4SendByte(*pstr);
- 177   2          pstr++;
- 178   2        }
-C51 COMPILER V9.57.0.0   UART                                                              05/04/2021 14:02:50 PAGE 4   
+ 140   2          SCON1&=0xFD;
+ 141   2          uart3_busy=0;
+ 142   2        }    
+ 143   1        WDT_RST();
+ 144   1        EA=1;
+ 145   1      }
+ 146          
+ 147          ///*****************************************************************************
+ 148          //����4����*/
+ 149          void Uart4Init(void)
+ 150          {
+ 151   1        uart4_rx_count=0;
+ 152   1        SCON2T     = 0x80;        /*����UART4����*/
+ 153   1        SCON2R     = 0x80;        /*����UART4����*/
+ 154   1        BODE2_DIV_H= 0x00;        /*FCLK/(8*DIV)*/
+ 155   1        BODE2_DIV_L= 0xe0;
+ 156   1        //ES2T=1;
+ 157   1        ES2R=1;
+ 158   1      }
+ 159          /*****************************************************************************
+ 160          ����4�����ֽ�*/
+ 161          void Uart4SendByte(uint8_t dat)
+ 162          {
+ 163   1        SBUF2_TX = dat;    
+ 164   1        while((SCON2T&0x01) == 0); 
+ 165   1        SCON2T &= 0xFE;  
+ 166   1      }
+ 167          
+ 168          void Uart4SendStr(uint8_t *pstr,uint8_t strlen)
+ 169          {
+ 170   1        if((NULL == pstr)||(0 == strlen))
+ 171   1        {
+ 172   2          return;
+ 173   2        }
+ 174   1      //  P0_0 = 1;
+ 175   1        while(strlen--)
+ 176   1        {
+ 177   2          Uart4SendByte(*pstr);
+ 178   2          pstr++;
+C51 COMPILER V9.57.0.0   UART                                                              05/08/2021 13:18:31 PAGE 4   
 
- 179   1      //  P0_0 = 0;
- 180   1      }
- 181          /*****************************************************************************
- 182          ����4�����ж�*/
- 183          void UART4_TX_ISR_PC(void)    interrupt 10
- 184          { 
- 185   1      }
- 186          /*****************************************************************************
- 187          ����4�����ж�*/
- 188          void UART4_RX_ISR_PC(void)    interrupt 11
- 189          {
- 190   1        uint8_t res=0;
- 191   1        EA=0;
- 192   1        if((SCON2R&0x01)==0x01)
- 193   1        {
- 194   2          res=SBUF2_RX;
- 195   2          Uart4_Rx[uart4_rx_count]=res; 
- 196   2          uart4_rx_count++;
- 197   2          SCON2R&=0xFE;
- 198   2          if (uart4_rx_count >= UART4_MAX_LEN) {
- 199   3              //��ֹ���
- 200   3              uart4_rx_count = 0;
- 201   3          }
- 202   2        }
- 203   1        WDT_RST();
- 204   1        EA=1;
- 205   1      }
- 206          
+ 179   2        }
+ 180   1      //  P0_0 = 0;
+ 181   1      }
+ 182          /*****************************************************************************
+ 183          ����4�����ж�*/
+ 184          void UART4_TX_ISR_PC(void)    interrupt 10
+ 185          { 
+ 186   1      }
+ 187          /*****************************************************************************
+ 188          ����4�����ж�*/
+ 189          void UART4_RX_ISR_PC(void)    interrupt 11
+ 190          {
+ 191   1        uint8_t res=0;
+ 192   1        EA=0;
+ 193   1        if((SCON2R&0x01)==0x01)
+ 194   1        {
+ 195   2          res=SBUF2_RX;
+ 196   2          Uart4_Rx[uart4_rx_count]=res; 
+ 197   2          uart4_rx_count++;
+ 198   2          SCON2R&=0xFE;
+ 199   2          if (uart4_rx_count >= UART4_MAX_LEN) {
+ 200   3              //��ֹ���
+ 201   3              uart4_rx_count = 0;
+ 202   3          }
+ 203   2        }
+ 204   1        WDT_RST();
+ 205   1        EA=1;
+ 206   1      }
  207          
- 208          ///*****************************************************************************
- 209          //����5����*/
- 210          void Uart5Init(void)
- 211          {
- 212   1        uart5_rx_count=0;
- 213   1        SCON3T     = 0x80;        /*����UART4����*/
- 214   1        SCON3R     = 0x80;        /*����UART4����*/
- 215   1        BODE3_DIV_H= 0x00;        /*FCLK/(8*DIV)*/
- 216   1        BODE3_DIV_L= 0xE0;
- 217   1        //ES2T=1;
- 218   1        ES3R=1;
- 219   1      }
- 220          /*****************************************************************************
- 221          ����5�����ֽ�*/
- 222          void Uart5SendByte(uint8_t dat)
- 223          {
- 224   1        SBUF3_TX = dat;    
- 225   1        while((SCON3T&0x01) == 0); 
- 226   1        SCON3T &= 0xFE;
- 227   1      }
- 228          /*****************************************************************************
- 229          ����5�����ַ���*/
- 230          void Uart5SendStr(uint8_t *pstr,uint8_t strlen)
- 231          {
- 232   1        if((NULL == pstr)||(0 == strlen))
- 233   1        {
- 234   2          return;
- 235   2        }
- 236   1        while(strlen--)
- 237   1        {
- 238   2          Uart5SendByte(*pstr);
- 239   2          pstr++;
- 240   2        }  
-C51 COMPILER V9.57.0.0   UART                                                              05/04/2021 14:02:50 PAGE 5   
+ 208          
+ 209          ///*****************************************************************************
+ 210          //����5����*/
+ 211          void Uart5Init(void)
+ 212          {
+ 213   1        uart5_rx_count=0;
+ 214   1        SCON3T     = 0x80;        /*����UART4����*/
+ 215   1        SCON3R     = 0x80;        /*����UART4����*/
+ 216   1        BODE3_DIV_H= 0x00;        /*FCLK/(8*DIV)*/
+ 217   1        BODE3_DIV_L= 0xE0;
+ 218   1        //ES2T=1;
+ 219   1        ES3R=1;
+ 220   1      }
+ 221          /*****************************************************************************
+ 222          ����5�����ֽ�*/
+ 223          void Uart5SendByte(uint8_t dat)
+ 224          {
+ 225   1        SBUF3_TX = dat;    
+ 226   1        while((SCON3T&0x01) == 0); 
+ 227   1        SCON3T &= 0xFE;
+ 228   1      }
+ 229          /*****************************************************************************
+ 230          ����5�����ַ���*/
+ 231          void Uart5SendStr(uint8_t *pstr,uint8_t strlen)
+ 232          {
+ 233   1        if((NULL == pstr)||(0 == strlen))
+ 234   1        {
+ 235   2          return;
+ 236   2        }
+ 237   1        while(strlen--)
+ 238   1        {
+ 239   2          Uart5SendByte(*pstr);
+ 240   2          pstr++;
+C51 COMPILER V9.57.0.0   UART                                                              05/08/2021 13:18:31 PAGE 5   
 
- 241   1      }
- 242          /*****************************************************************************
- 243          ����5�����ж�*/
- 244          void UART5_TX_ISR_PC(void)    interrupt 12
- 245          { 
- 246   1      }
- 247          /*****************************************************************************
- 248          ����5�����ж�*/
- 249          void UART5_RX_ISR_PC(void)    interrupt 13
- 250          {
- 251   1        uint8_t res=0;
- 252   1        EA=0;
- 253   1        if((SCON3R&0x01)==0x01)
- 254   1        {
- 255   2          res=SBUF3_RX;
- 256   2          Uart5_Rx[uart5_rx_count]=res; 
- 257   2          uart5_rx_count++;
- 258   2          SCON3R&=0xFE;
- 259   2          if (uart5_rx_count >= UART5_MAX_LEN) {
- 260   3              //��ֹ���
- 261   3              uart5_rx_count = 0;
- 262   3          }
- 263   2        }
- 264   1        WDT_RST();
- 265   1        EA=1;
- 266   1      }
- 267          
- 268          /*****************************************************************************
- 269          ����������*/
- 270          void InitUart(void)
- 271          {
- 272   1        Uart2Init();
- 273   1      //  Uart3Init();
- 274   1      //  Uart4Init();
- 275   1      //  Uart5Init();
- 276   1      }
- 277          
+ 241   2        }  
+ 242   1      }
+ 243          /*****************************************************************************
+ 244          ����5�����ж�*/
+ 245          void UART5_TX_ISR_PC(void)    interrupt 12
+ 246          { 
+ 247   1      }
+ 248          /*****************************************************************************
+ 249          ����5�����ж�*/
+ 250          void UART5_RX_ISR_PC(void)    interrupt 13
+ 251          {
+ 252   1        uint8_t res=0;
+ 253   1        EA=0;
+ 254   1        if((SCON3R&0x01)==0x01)
+ 255   1        {
+ 256   2          res=SBUF3_RX;
+ 257   2          Uart5_Rx[uart5_rx_count]=res; 
+ 258   2          uart5_rx_count++;
+ 259   2          SCON3R&=0xFE;
+ 260   2          if (uart5_rx_count >= UART5_MAX_LEN) {
+ 261   3              //��ֹ���
+ 262   3              uart5_rx_count = 0;
+ 263   3          }
+ 264   2        }
+ 265   1        WDT_RST();
+ 266   1        EA=1;
+ 267   1      }
+ 268          
+ 269          /*****************************************************************************
+ 270          ����������*/
+ 271          void InitUart(void)
+ 272          {
+ 273   1        Uart2Init();
+ 274   1      //  Uart3Init();
+ 275   1      //  Uart4Init();
+ 276   1      //  Uart5Init();
+ 277   1      }
+ 278          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    805    ----
+   CODE SIZE        =    817    ----
    CONSTANT SIZE    =   ----    ----
-   XDATA SIZE       =   8490      12
+   XDATA SIZE       =   8490      13
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
