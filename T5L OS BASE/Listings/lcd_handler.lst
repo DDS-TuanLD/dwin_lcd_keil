@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/08/2021 13:18:31 PAGE 1   
+C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/24/2021 15:15:43 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE LCD_HANDLER
@@ -17,134 +17,181 @@ line level    source
    7          #include "norflash.h"
    8          #include "uart_handler.h"
    9          
-  10          void lcd_send_uart_data_process(){
-  11   1        if(is_uart_mess_response_waiting() == 1){
-  12   2          return;
-  13   2        }
-  14   1        lcd_send_scene_call_uart_process();
-  15   1      }
-  16          
-  17          void lcd_handler_uart_data_reiv_process(){
-  18   1        uint16_t i;
-  19   1        if((!is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written() < UART_DATA_MIN_LEN)){
-  20   2          return;
-  21   2        }
-  22   1        if(is_uart_mess_response_waiting()){
-  23   2          DelayMs(200);
-  24   2        }
-  25   1        i = get_valid_data_header_loc();
-  26   1        if((is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written() < uart_last_mess_sent.len))
-             -{
-  27   2          Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
-  28   2            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
-  29   2            if(uart_last_mess_sent.sent_count > 5){
-  30   3              uart_last_mess_sent.flag = 0;
-  31   3              uart_last_mess_sent.sent_count = 0;
-  32   3            }
-  33   2        }
-  34   1        if(i == 0xffff){
-  35   2          uint16_t num = user_fifo_get_number_bytes_written();
-  36   2          if(user_fifo_get_number_bytes_written() < UART_DATA_MIN_LEN){
-  37   3            return;
-  38   3          }
-  39   2          DelayMs(50);
-  40   2          if(num == user_fifo_get_number_bytes_written()){
-  41   3            uint16_t j;
-  42   3            uint8_t buff[UART_DATA_MAX_LEN];
-  43   3            for(j = 0; j <num; j++){
-  44   4              buff[j] = user_fifo_pop();
-  45   4            }
-  46   3            uart_data_handler(buff, num);
-  47   3          }
-  48   2          
-  49   2        }else{
-  50   2          uint16_t j;
-  51   2          uint8_t buff[UART_DATA_MAX_LEN];
-  52   2          for(j = 0;j <i;j++){
-  53   3            buff[j] = user_fifo_pop();
-C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/08/2021 13:18:31 PAGE 2   
+  10          real_time_t lcd_real_time = {0};
+  11          uint16_t timer_2_count = 0;
+  12          uint8_t lcd_brg_old = 0;
+  13          uint8_t lcd_vlm_st_old = 1;
+  14          
+  15          void lcd_send_uart_data_process(){
+  16   1        if(is_uart_mess_response_waiting() == 1){
+  17   2          return;
+  18   2        }
+  19   1        lcd_send_uart_cmd_process();
+  20   1      }
+  21          
+  22          void lcd_handler_uart_data_reiv_process(){
+  23   1        uint16_t i;
+  24   1        if(is_uart_mess_response_waiting()){
+  25   2          DelayMs(200);
+  26   2        }
+  27   1        i = get_valid_data_header_loc();
+  28   1        if((is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written_t(&user_fifo) < uart_last_mes
+             -s_sent.len)){
+  29   2          Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+  30   2            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
+  31   2            if(uart_last_mess_sent.sent_count > 5){
+  32   3              uart_last_mess_sent.flag = 0;
+  33   3              uart_last_mess_sent.sent_count = 0;
+  34   3            }
+  35   2        }
+  36   1        if(i == 0xffff){
+  37   2          uint16_t num = user_fifo_get_number_bytes_written_t(&user_fifo);
+  38   2          if(num < UART_DATA_MIN_LEN){
+  39   3            return;
+  40   3          }
+  41   2          DelayMs(50);
+  42   2          if(num == user_fifo_get_number_bytes_written_t(&user_fifo)){
+  43   3            uint16_t j;
+  44   3            uint8_t buff[UART_DATA_MAX_LEN];
+  45   3            for(j = 0; j <num; j++){
+  46   4              buff[j] = user_fifo_pop_t(&user_fifo);
+  47   4            }
+  48   3            uart_data_handler(buff, num);
+  49   3          }
+  50   2          
+  51   2        }else{
+  52   2          uint16_t j;
+  53   2          uint8_t buff[UART_DATA_MAX_LEN];
+C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/24/2021 15:15:43 PAGE 2   
 
-  54   3          }
-  55   2          uart_data_handler(buff, i);
-  56   2        }
-  57   1        return;
-  58   1      }
-  59          
-  60          void lcd_update_temp(){
-  61   1        uint8_t temp_data[2] = {0};
-  62   1        uint16_t temp;
-  63   1        uint8_t temp_display_o[1];
-  64   1        uint8_t temp_display_i[1];
-  65   1        uint8_t temp_display_d[1];
-  66   1        
-  67   1        ReadNorFlash(LCD_TEM_SAVE_ADR, LCD_UPDATE_TEM_ADR, 2);
-  68   1        ReadDGUS(LCD_UPDATE_TEM_ADR, temp_data, 2);
-  69   1        
-  70   1        temp_display_o[0] = temp_data[0] >> 7;
-  71   1        temp_display_i[0] = temp_data[0] & 0x7f;
-  72   1        temp_display_d[0] = temp_data[1];
-  73   1        temp = temp_display_i[0] << 8 | temp_display_d[0];
-  74   1        temp_display_i[0] = temp/10;
-  75   1        temp_display_d[0] = temp%10;
-  76   1        if(temp_display_o[0] == 1){
-  77   2          
-  78   2        }
-  79   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_O, temp_display_o, 1);
-  80   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_I, temp_display_i, 1);
-  81   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_D, temp_display_d, 1);
-  82   1        return;
-  83   1      }
-  84          void lcd_update_humi(){
-  85   1        uint8_t humi_data[2] = {0};
-  86   1        uint8_t humi_i[1];
-  87   1        uint8_t humi_d[1];
-  88   1        ReadNorFlash(LCD_HUM_SAVE_ADR, LCD_UPDATE_HUM_ADR, 2);
-  89   1        ReadDGUS(LCD_UPDATE_HUM_ADR, humi_data, 2);
-  90   1        humi_i[0] = humi_data[0];
-  91   1        humi_d[0] = humi_data[1];
-  92   1        WriteDGUS(LCD_DISPLAY_HUM_ADR_I, humi_i, 1);
-  93   1        WriteDGUS(LCD_DISPLAY_HUM_ADR_D, humi_d, 1);
-  94   1        return;
-  95   1      }
-  96          
-  97          void lcd_update_sensor_para(){
-  98   1        lcd_update_temp();
-  99   1        lcd_update_humi();
- 100   1        return;
- 101   1      }
- 102          
- 103          void lcd_update_real_time(){
- 104   1        uint8_t time_data[2] = {0};
- 105   1        uint8_t time_h[1];
- 106   1        uint8_t time_m[1];
- 107   1        ReadNorFlash(LCD_TIM_SAVE_ADR, LCD_UPDTE_TIME_ADR, 2);
- 108   1        ReadDGUS(LCD_UPDTE_TIME_ADR, time_data, 2);
- 109   1        time_h[0] = time_data[0];
- 110   1        time_m[0] = time_data[1];
- 111   1        WriteDGUS(LCD_DISPLAY_TIME_H_ADR, time_h, 1);
- 112   1        WriteDGUS(LCD_DISPLAY_TIME_M_ADR, time_m, 1);
- 113   1        return;
- 114   1      }
- 115          
-C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/08/2021 13:18:31 PAGE 3   
+  54   2          for(j = 0;j <i;j++){
+  55   3            buff[j] = user_fifo_pop_t(&user_fifo);
+  56   3          }
+  57   2          uart_data_handler(buff, i);
+  58   2        }
+  59   1        return;
+  60   1      }
+  61          
+  62          void lcd_update_temp(){
+  63   1        uint8_t temp_data[2] = {0};
+  64   1        uint16_t temp;
+  65   1        uint8_t temp_display_o[1];
+  66   1        uint8_t temp_display_i[1];
+  67   1        uint8_t temp_display_d[1];
+  68   1        
+  69   1        ReadNorFlash(LCD_TEM_SAVE_ADR, LCD_UPDATE_TEM_ADR, 2);
+  70   1        ReadDGUS(LCD_UPDATE_TEM_ADR, temp_data, 2);
+  71   1        
+  72   1        temp_display_o[0] = temp_data[0] >> 7;
+  73   1        temp_display_i[0] = temp_data[0] & 0x7f;
+  74   1        temp_display_d[0] = temp_data[1];
+  75   1        temp = temp_display_i[0] << 8 | temp_display_d[0];
+  76   1        temp_display_i[0] = temp/10;
+  77   1        temp_display_d[0] = temp%10;
+  78   1        if(temp_display_o[0] == 0x01){
+  79   2          
+  80   2        }
+  81   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_O, temp_display_o, 1);
+  82   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_I, temp_display_i, 1);
+  83   1        WriteDGUS(LCD_DISPLAY_TEM_ADR_D, temp_display_d, 1);
+  84   1        return;
+  85   1      }
+  86          void lcd_update_humi(){
+  87   1        uint8_t humi_data[2] = {0};
+  88   1        uint8_t humi_i[1];
+  89   1        uint8_t humi_d[1];
+  90   1        ReadNorFlash(LCD_HUM_SAVE_ADR, LCD_UPDATE_HUM_ADR, 2);
+  91   1        ReadDGUS(LCD_UPDATE_HUM_ADR, humi_data, 2);
+  92   1        humi_i[0] = humi_data[0];
+  93   1        humi_d[0] = humi_data[1];
+  94   1        WriteDGUS(LCD_DISPLAY_HUM_ADR_I, humi_i, 1);
+  95   1        WriteDGUS(LCD_DISPLAY_HUM_ADR_D, humi_d, 1);
+  96   1        return;
+  97   1      }
+  98          
+  99          void lcd_update_sensor_para(){
+ 100   1        lcd_update_temp();
+ 101   1        lcd_update_humi();
+ 102   1        return;
+ 103   1      }
+ 104          
+ 105          void lcd_request_time_update(){
+ 106   1         lcd_send_update_time_mess(UART_TYPE_FEEDBACK);
+ 107   1      }
+ 108          
+ 109          void lcd_update_brightness(){
+ 110   1        uint8_t led_brg_now[2];
+ 111   1        uint8_t lcd_brg_set;
+ 112   1        uint8_t led_on[4]={0x64,0x04,0x17,0x70};
+ 113   1        
+ 114   1        ReadDGUS(LCD_BRIGHTNESS_CTL_ADR, led_brg_now, 2);
+ 115   1        lcd_brg_set = led_brg_now[1];
+C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/24/2021 15:15:43 PAGE 3   
 
- 116          void lcd_update_home_para(){
- 117   1        lcd_update_sensor_para();
- 118   1        lcd_update_real_time();
- 119   1      }
- 120          
- 121          void lcd_para_init(){
- 122   1        return ;
- 123   1      }
+ 116   1        if(lcd_brg_set == 0){
+ 117   2          return;
+ 118   2        }
+ 119   1        if(lcd_brg_set != lcd_brg_old){
+ 120   2          lcd_brg_old = lcd_brg_set;
+ 121   2          led_on[0] = lcd_brg_set;
+ 122   2          WriteDGUS(0x0082, led_on, 4);
+ 123   2          WriteNorFlash(LCD_BRG_SAVE_ADR, LCD_BRIGHTNESS_CTL_ADR, 2);
+ 124   2          
+ 125   2        }
+ 126   1      }
+ 127          
+ 128          void lcd_update_vlm_st(){
+ 129   1        uint8_t vlm_st[2];
+ 130   1        uint8_t vlm_st_set;
+ 131   1        uint8_t vlm_on[4]={0x5a,0x00,0x00,0x2C};
+ 132   1        ReadDGUS(LCD_VOLUMN_ONOFF_ADR, vlm_st, 2);
+ 133   1        vlm_st_set = vlm_st[1];
+ 134   1        if(vlm_st_set != lcd_vlm_st_old){
+ 135   2          lcd_vlm_st_old = vlm_st_set;
+ 136   2          if(vlm_st_set == 0){
+ 137   3            vlm_on[3] = 0x24;
+ 138   3          }
+ 139   2          if(vlm_st_set == 1){
+ 140   3            vlm_on[3] = 0x2C;
+ 141   3          }
+ 142   2          WriteDGUS(0x0080, vlm_on, 4);
+ 143   2          WriteNorFlash(LCD_VLM_SAVE_ADR, LCD_VOLUMN_ONOFF_ADR, 2);
+ 144   2        }
+ 145   1      }
+ 146          
+ 147          void real_time_run(){
+ 148   1        uint8_t time_h[1];
+ 149   1        uint8_t time_m[1];
+ 150   1        time_h[0] = lcd_real_time.h;
+ 151   1        time_m[0] = lcd_real_time.m;
+ 152   1        WriteDGUS(LCD_DISPLAY_TIME_H_ADR, time_h, 1);
+ 153   1        WriteDGUS(LCD_DISPLAY_TIME_M_ADR, time_m, 1);
+ 154   1      }
+ 155          
+ 156          void lcd_update_home_para(){
+ 157   1        lcd_update_sensor_para();
+ 158   1        lcd_update_brightness();
+ 159   1        lcd_update_vlm_st();
+ 160   1      }
+ 161          
+ 162          void lcd_para_init(){
+ 163   1      
+ 164   1        ReadNorFlash(LCD_BRG_SAVE_ADR, LCD_BRIGHTNESS_CTL_ADR, 2);
+ 165   1        ReadNorFlash(LCD_VLM_SAVE_ADR, LCD_VOLUMN_ONOFF_ADR, 2);
+ 166   1        return ;
+ 167   1      }
+ 168          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    754    ----
-   CONSTANT SIZE    =      6    ----
-   XDATA SIZE       =   ----      49
+   CODE SIZE        =    954    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =      7      59
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
+C51 COMPILER V9.57.0.0   LCD_HANDLER                                                       05/24/2021 15:15:43 PAGE 4   
+
    BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.
 

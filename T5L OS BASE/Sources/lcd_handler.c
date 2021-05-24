@@ -7,23 +7,25 @@
 #include "norflash.h"
 #include "uart_handler.h"
 
+real_time_t lcd_real_time = {0};
+uint16_t timer_2_count = 0;
+uint8_t lcd_brg_old = 0;
+uint8_t lcd_vlm_st_old = 1;
+
 void lcd_send_uart_data_process(){
 	if(is_uart_mess_response_waiting() == 1){
 		return;
 	}
-	lcd_send_scene_call_uart_process();
+	lcd_send_uart_cmd_process();
 }
 
 void lcd_handler_uart_data_reiv_process(){
 	uint16_t i;
-	if((!is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written() < UART_DATA_MIN_LEN)){
-		return;
-	}
 	if(is_uart_mess_response_waiting()){
 		DelayMs(200);
 	}
 	i = get_valid_data_header_loc();
-	if((is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written() < uart_last_mess_sent.len)){
+	if((is_uart_mess_response_waiting()) && (user_fifo_get_number_bytes_written_t(&user_fifo) < uart_last_mess_sent.len)){
 		Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
 			uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
 			if(uart_last_mess_sent.sent_count > 5){
@@ -32,16 +34,16 @@ void lcd_handler_uart_data_reiv_process(){
 			}
 	}
 	if(i == 0xffff){
-		uint16_t num = user_fifo_get_number_bytes_written();
-		if(user_fifo_get_number_bytes_written() < UART_DATA_MIN_LEN){
+		uint16_t num = user_fifo_get_number_bytes_written_t(&user_fifo);
+		if(num < UART_DATA_MIN_LEN){
 			return;
 		}
 		DelayMs(50);
-		if(num == user_fifo_get_number_bytes_written()){
+		if(num == user_fifo_get_number_bytes_written_t(&user_fifo)){
 			uint16_t j;
 			uint8_t buff[UART_DATA_MAX_LEN];
 			for(j = 0; j <num; j++){
-				buff[j] = user_fifo_pop();
+				buff[j] = user_fifo_pop_t(&user_fifo);
 			}
 			uart_data_handler(buff, num);
 		}
@@ -50,7 +52,7 @@ void lcd_handler_uart_data_reiv_process(){
 		uint16_t j;
 		uint8_t buff[UART_DATA_MAX_LEN];
 		for(j = 0;j <i;j++){
-			buff[j] = user_fifo_pop();
+			buff[j] = user_fifo_pop_t(&user_fifo);
 		}
 		uart_data_handler(buff, i);
 	}
@@ -73,7 +75,7 @@ void lcd_update_temp(){
 	temp = temp_display_i[0] << 8 | temp_display_d[0];
 	temp_display_i[0] = temp/10;
 	temp_display_d[0] = temp%10;
-	if(temp_display_o[0] == 1){
+	if(temp_display_o[0] == 0x01){
 		
 	}
 	WriteDGUS(LCD_DISPLAY_TEM_ADR_O, temp_display_o, 1);
@@ -100,24 +102,67 @@ void lcd_update_sensor_para(){
 	return;
 }
 
-void lcd_update_real_time(){
-	uint8_t time_data[2] = {0};
+void lcd_request_time_update(){
+	 lcd_send_update_time_mess(UART_TYPE_FEEDBACK);
+}
+
+void lcd_update_brightness(){
+	uint8_t led_brg_now[2];
+	uint8_t lcd_brg_set;
+	uint8_t led_on[4]={0x64,0x04,0x17,0x70};
+	
+	ReadDGUS(LCD_BRIGHTNESS_CTL_ADR, led_brg_now, 2);
+	lcd_brg_set = led_brg_now[1];
+	if(lcd_brg_set == 0){
+		return;
+	}
+	if(lcd_brg_set != lcd_brg_old){
+		lcd_brg_old = lcd_brg_set;
+		led_on[0] = lcd_brg_set;
+		WriteDGUS(0x0082, led_on, 4);
+		WriteNorFlash(LCD_BRG_SAVE_ADR, LCD_BRIGHTNESS_CTL_ADR, 2);
+		
+	}
+}
+
+void lcd_update_vlm_st(){
+	uint8_t vlm_st[2];
+	uint8_t vlm_st_set;
+	uint8_t vlm_on[4]={0x5a,0x00,0x00,0x2C};
+	ReadDGUS(LCD_VOLUMN_ONOFF_ADR, vlm_st, 2);
+	vlm_st_set = vlm_st[1];
+	if(vlm_st_set != lcd_vlm_st_old){
+		lcd_vlm_st_old = vlm_st_set;
+		if(vlm_st_set == 0){
+			vlm_on[3] = 0x24;
+		}
+		if(vlm_st_set == 1){
+			vlm_on[3] = 0x2C;
+		}
+		WriteDGUS(0x0080, vlm_on, 4);
+		WriteNorFlash(LCD_VLM_SAVE_ADR, LCD_VOLUMN_ONOFF_ADR, 2);
+	}
+}
+
+void real_time_run(){
 	uint8_t time_h[1];
 	uint8_t time_m[1];
-	ReadNorFlash(LCD_TIM_SAVE_ADR, LCD_UPDTE_TIME_ADR, 2);
-	ReadDGUS(LCD_UPDTE_TIME_ADR, time_data, 2);
-	time_h[0] = time_data[0];
-	time_m[0] = time_data[1];
+	time_h[0] = lcd_real_time.h;
+	time_m[0] = lcd_real_time.m;
 	WriteDGUS(LCD_DISPLAY_TIME_H_ADR, time_h, 1);
 	WriteDGUS(LCD_DISPLAY_TIME_M_ADR, time_m, 1);
-	return;
 }
 
 void lcd_update_home_para(){
 	lcd_update_sensor_para();
-	lcd_update_real_time();
+	lcd_update_brightness();
+	lcd_update_vlm_st();
 }
 
 void lcd_para_init(){
+
+	ReadNorFlash(LCD_BRG_SAVE_ADR, LCD_BRIGHTNESS_CTL_ADR, 2);
+	ReadNorFlash(LCD_VLM_SAVE_ADR, LCD_VOLUMN_ONOFF_ADR, 2);
 	return ;
 }
+

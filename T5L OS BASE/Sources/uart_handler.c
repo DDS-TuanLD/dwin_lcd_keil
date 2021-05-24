@@ -40,7 +40,7 @@ void lcd_scene_call_send_uart(uint8_t btn, uint8_t ack){
 	scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
 	count = count + 1;
 	
-	scall_uart_send_dt[3] = UART_TYPE_CMD;
+	scall_uart_send_dt[3] = ack;
 	count = count + 1;
 
 	scall_uart_send_dt[4] = LCD_CALL_SCENE_CMD >> 8;
@@ -70,12 +70,12 @@ void lcd_scene_call_handler(uint8_t *dt, uint8_t ack){
 	lcd_scene_call_send_uart(dt[1], ack);
 }
 
-void lcd_send_scene_call_uart_process(){
+void lcd_send_uart_cmd_process(){
 	ReadDGUS(LCD_CALL_SCENE_ADR, scene_call, 2);
 	if(scene_call[1] == 0){
 		
 	}else{
-		lcd_scene_call_handler(scene_call, UART_TYPE_CMD);
+		lcd_scene_call_handler(scene_call, UART_TYPE_FEEDBACK);
 		WriteDGUS(LCD_CALL_SCENE_ADR, reset_data, 2);
 	}
 	
@@ -83,9 +83,8 @@ void lcd_send_scene_call_uart_process(){
 	if((reset_module[0] == 0) && (reset_module[1] == 0)){
 	
 	}else{
-		lcd_send_reset_cmd_to_module();
-		reset_module[0] = reset_module[1] = 0;
-		WriteDGUS(LCD_RESET_MODULE_ADR, reset_module, 2);
+		lcd_send_reset_cmd_to_module(UART_TYPE_FEEDBACK);
+		WriteDGUS(LCD_RESET_MODULE_ADR, reset_data, 2);
 	}
 	return;
 }
@@ -96,8 +95,8 @@ uint16_t get_valid_data_header_loc(){
 	uint16_t i1;
 	uint16_t i2;
 	uint16_t i3;
-	uint16_t r_point = user_fifo_get_r_point();
-	while (count <= user_fifo_get_number_bytes_written())
+	uint16_t r_point = user_fifo_get_r_point_t(&user_fifo);
+	while (count <= user_fifo_get_number_bytes_written_t(&user_fifo))
 	{
 		i1 = (i + r_point);
 		i2 = (i + r_point + 1);
@@ -110,7 +109,7 @@ uint16_t get_valid_data_header_loc(){
 		}if(i1 > MAX_QUEUE_LEN -1){
 			i3 = i3 - MAX_QUEUE_LEN;
 		}
-		if((user_fifo_get(i1) == UART_HEADER_DATA_0) && (user_fifo_get(i2) == UART_HEADER_DATA_0) && (user_fifo_get(i3) == UART_HMI_TO_MODULE) && (i1 != r_point)){
+		if((user_fifo_get_t(&user_fifo, i1) == UART_HEADER_DATA_0) && (user_fifo_get_t(&user_fifo, i2) == UART_HEADER_DATA_0) && (user_fifo_get_t(&user_fifo, i3) == UART_HMI_TO_MODULE) && (i1 != r_point)){
 			return i;
 		}
 		i = i + 1;
@@ -154,7 +153,7 @@ void uart_data_handler(uint8_t *dt, uint16_t len){
 			}
 			return;
 		}
-		if((temp == act_reiv) && (dt[3] == UART_TYPE_RES) && (len == uart_last_mess_sent.len)){
+		if((temp == act_reiv) && (dt[3] == UART_TYPE_NOFEEDBACK) && (len == uart_last_mess_sent.len)){
 			uart_last_mess_sent.flag = 0;
 			uart_last_mess_sent.sent_count = 0;
 		}else{
@@ -167,16 +166,20 @@ void uart_data_handler(uint8_t *dt, uint16_t len){
 		}
 		return;
 	}else{
-		uint16_t humi;
 		uint8_t time_data[2] = {0};
+		uint8_t time_h[1];
+		uint8_t time_m[1];
+		
 		uint8_t temp_data[2] = {0};
+		
+		uint16_t humi;
 		uint8_t humi_data[2] = {0};
 		if(!is_reiv_data_valid(dt, len)){
 			return;
 		}
-		if(dt[3] == UART_TYPE_CMD){
+		if(dt[3] == UART_TYPE_FEEDBACK){
 			dt[2] = UART_HMI_TO_MODULE;
-			dt[3] = UART_TYPE_RES;
+			dt[3] = UART_TYPE_NOFEEDBACK;
 			dt[len - 1] = create_crc_check(dt);
 			Uart2SendStr(dt, len);
 		}
@@ -195,10 +198,15 @@ void uart_data_handler(uint8_t *dt, uint16_t len){
 				WriteNorFlash(LCD_HUM_SAVE_ADR, LCD_UPDATE_HUM_ADR, 2);				
 				break;
 			case LCD_UPDTE_TIME_CMD : 
+			
 				time_data[0] = p_data.dt[0];
 				time_data[1] = p_data.dt[1];
 				WriteDGUS(LCD_UPDTE_TIME_ADR, time_data, 2);
 				WriteNorFlash(LCD_TIM_SAVE_ADR, LCD_UPDTE_TIME_ADR, 2);
+				lcd_real_time.h = time_h[0] = time_data[0];
+				lcd_real_time.m = time_m[0] = time_data[1];
+				WriteDGUS(LCD_DISPLAY_TIME_H_ADR, time_h, 1);
+				WriteDGUS(LCD_DISPLAY_TIME_M_ADR, time_m, 1);
 				break;
 			default:
 				break;
@@ -207,7 +215,7 @@ void uart_data_handler(uint8_t *dt, uint16_t len){
 	return;
 }
 
-void lcd_send_reset_cmd_to_module(){
+void lcd_send_reset_cmd_to_module(uint8_t ack){
     uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
 	int count = 0;
 
@@ -220,7 +228,7 @@ void lcd_send_reset_cmd_to_module(){
 	scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
 	count = count + 1;
 	
-	scall_uart_send_dt[3] = UART_TYPE_CMD;
+	scall_uart_send_dt[3] = ack;
 	count = count + 1;
 
 	scall_uart_send_dt[4] = LCD_RESET_MODULE_CMD >> 8;
@@ -232,7 +240,83 @@ void lcd_send_reset_cmd_to_module(){
 	scall_uart_send_dt[6] = 0x00;
 	count = count + 1;
 
-	scall_uart_send_dt[8] = create_crc_check(scall_uart_send_dt);
+	scall_uart_send_dt[7] = create_crc_check(scall_uart_send_dt);
+	count = count + 1;
+	
+	t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
+	uart_last_mess_sent.len = count;
+	uart_last_mess_sent.flag = ack;
+	
+	Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+}
+
+void lcd_send_relay_control_cmd(uint8_t relay, uint8_t mod, uint8_t ack){
+	uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
+	int count = 0;
+
+	scall_uart_send_dt[0] = UART_HEADER_DATA_0;
+	count = count + 1;
+
+	scall_uart_send_dt[1] = UART_HEADER_DATA_1;
+	count = count + 1;
+	
+	scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
+	count = count + 1;
+	
+	scall_uart_send_dt[3] = ack;
+	count = count + 1;
+
+	scall_uart_send_dt[4] = LCD_SEND_RELAY_CMD >> 8;
+	count = count + 1;
+
+	scall_uart_send_dt[5] = LCD_SEND_RELAY_CMD & 0x00ff;
+	count = count + 1;
+
+	scall_uart_send_dt[6] = 0x02;
+	count = count + 1;
+
+	scall_uart_send_dt[7] = relay;
+	count = count + 1;
+	
+	scall_uart_send_dt[8] = mod;
+	count = count + 1;
+
+	scall_uart_send_dt[9] = create_crc_check(scall_uart_send_dt);
+	count = count + 1;
+	
+	t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
+	uart_last_mess_sent.len = count;
+	uart_last_mess_sent.flag = 0x01;
+	
+	Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+}
+
+void lcd_send_update_time_mess(uint8_t ack){
+	uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
+	int count = 0;
+
+	scall_uart_send_dt[0] = UART_HEADER_DATA_0;
+	count = count + 1;
+
+	scall_uart_send_dt[1] = UART_HEADER_DATA_1;
+	count = count + 1;
+	
+	scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
+	count = count + 1;
+	
+	scall_uart_send_dt[3] = ack;
+	count = count + 1;
+
+	scall_uart_send_dt[4] = LCD_REQUEST_TIME_CMD >> 8;
+	count = count + 1;
+
+	scall_uart_send_dt[5] = LCD_REQUEST_TIME_CMD & 0x00ff;
+	count = count + 1;
+
+	scall_uart_send_dt[6] = 0x00;
+	count = count + 1;
+
+	scall_uart_send_dt[7] = create_crc_check(scall_uart_send_dt);
 	count = count + 1;
 	
 	t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);

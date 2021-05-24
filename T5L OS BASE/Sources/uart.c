@@ -62,10 +62,10 @@ void UART2_ISR_PC(void)    interrupt 4
 			res=SBUF0;
 			// Uart2_Rx[uart2_rx_count]=res; 
 			// uart2_rx_count++;
-			if (user_fifo_get_number_bytes_written() == MAX_QUEUE_LEN) {
-				user_fifo_pop();
+			if (user_fifo_get_number_bytes_written_t(&user_fifo) == MAX_QUEUE_LEN) {
+				user_fifo_pop_t(&user_fifo);
 			}
-      user_fifo_push(res);
+      user_fifo_push_t(&user_fifo, res);
 			
 			RI0=0;       
 	}
@@ -193,15 +193,20 @@ void UART4_RX_ISR_PC(void)    interrupt 11
   if((SCON2R&0x01)==0x01)
   {
     res=SBUF2_RX;
-    Uart4_Rx[uart4_rx_count]=res; 
-    uart4_rx_count++;
-    SCON2R&=0xFE;
-    if (uart4_rx_count >= UART4_MAX_LEN) {
-        //��ֹ���
-        uart4_rx_count = 0;
+//    Uart4_Rx[uart4_rx_count]=res; 
+//    uart4_rx_count++;
+		if (user_fifo_get_number_bytes_written_t(&uart_4_fifo) == MAX_QUEUE_LEN) {
+			user_fifo_pop_t(&uart_4_fifo);
 		}
+    user_fifo_push_t(&uart_4_fifo, res);
+    SCON2R&=0xFE;
+//    if (uart4_rx_count >= UART4_MAX_LEN) {
+//        //��ֹ���
+//        uart4_rx_count = 0;
+//		}
+			
   }
-  WDT_RST();
+  //WDT_RST();
   EA=1;
 }
 
@@ -272,7 +277,7 @@ void InitUart(void)
 {
   Uart2Init();
 //  Uart3Init();
-//  Uart4Init();
+  Uart4Init();
 //  Uart5Init();
 }
 

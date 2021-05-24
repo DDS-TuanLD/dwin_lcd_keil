@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/08/2021 13:18:31 PAGE 1   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE USER_FIFO
@@ -10,69 +10,125 @@ line level    source
 
    1          #include "user_fifo.h"
    2          #include "sys.h"
-   3          user_fifo_t user_fifo;
-   4          
-   5          void user_fifo_init(){
-   6   1          if(user_fifo.is_init == 1){
-   7   2              return;
-   8   2          }
-   9   1          user_fifo.num_bytes_written = user_fifo.r = user_fifo.w = 0;
-  10   1          user_fifo.is_init = 1;
-  11   1      }
-  12          
-  13          uint8_t user_fifo_pop(){
-  14   1          uint8_t temp;
-  15   1          if(user_fifo.num_bytes_written == 0){
-  16   2              return 0xff;
-  17   2          }
-  18   1          temp = user_fifo.dt[user_fifo.r];
-  19   1          user_fifo.r = user_fifo.r + 1;
-  20   1          if(user_fifo.r == MAX_QUEUE_LEN){
-  21   2              user_fifo.r = 0;
-  22   2          }
-  23   1          user_fifo.num_bytes_written = user_fifo.num_bytes_written - 1;
-  24   1          return temp;
-  25   1      }
-  26          void user_fifo_push(uint8_t d){
-  27   1          if(user_fifo.num_bytes_written == MAX_QUEUE_LEN){
-  28   2              return;
-  29   2          }
-  30   1          user_fifo.dt[user_fifo.w] = d;
-  31   1          user_fifo.w = user_fifo.w + 1;
-  32   1          if(user_fifo.w == MAX_QUEUE_LEN){
-  33   2              user_fifo.w = 0;
-  34   2          }
-  35   1          user_fifo.num_bytes_written = user_fifo.num_bytes_written + 1;
-  36   1      }
-  37          uint8_t user_fifo_get(uint8_t loc){
-  38   1          return user_fifo.dt[loc];
-  39   1      }
-  40          
-  41          void user_fifo_reset(){
-  42   1          user_fifo.num_bytes_written = user_fifo.r = user_fifo.w = 0;
-  43   1      }
-  44          
-  45          uint16_t user_fifo_get_r_point(){
-  46   1          return user_fifo.r;
-  47   1      }
-  48          
-  49          uint16_t user_fifo_get_w_point(){
-  50   1          return user_fifo.w;
-  51   1      }
-  52          
-  53          uint16_t user_fifo_get_number_bytes_written(){
-  54   1          return user_fifo.num_bytes_written;
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/08/2021 13:18:31 PAGE 2   
+   3          
+   4          user_fifo_t user_fifo;
+   5          user_fifo_t uart_4_fifo;
+   6          
+   7          // void user_fifo_init(){
+   8          //     if(user_fifo.is_init == 1){
+   9          //         return;
+  10          //     }
+  11          //     user_fifo.num_bytes_written = user_fifo.r = user_fifo.w = 0;
+  12          //     user_fifo.is_init = 1;
+  13          // }
+  14          
+  15          // uint8_t user_fifo_pop(){
+  16          //    uint8_t temp;
+  17          //     if(user_fifo.num_bytes_written == 0){
+  18          //         return 0xff;
+  19          //     }
+  20          //     temp = user_fifo.dt[user_fifo.r];
+  21          //     user_fifo.r = user_fifo.r + 1;
+  22          //     if(user_fifo.r == MAX_QUEUE_LEN){
+  23          //         user_fifo.r = 0;
+  24          //     }
+  25          //     user_fifo.num_bytes_written = user_fifo.num_bytes_written - 1;
+  26          //     return temp;
+  27          // }
+  28          // void user_fifo_push(uint8_t d){
+  29          //     if(user_fifo.num_bytes_written == MAX_QUEUE_LEN){
+  30          //         return;
+  31          //     }
+  32          //     user_fifo.dt[user_fifo.w] = d;
+  33          //     user_fifo.w = user_fifo.w + 1;
+  34          //     if(user_fifo.w == MAX_QUEUE_LEN){
+  35          //         user_fifo.w = 0;
+  36          //     }
+  37          //     user_fifo.num_bytes_written = user_fifo.num_bytes_written + 1;
+  38          // }
+  39          // uint8_t user_fifo_get(uint8_t loc){
+  40          //     return user_fifo.dt[loc];
+  41          // }
+  42          
+  43          // void user_fifo_reset(){
+  44          //     user_fifo.num_bytes_written = user_fifo.r = user_fifo.w = 0;
+  45          // }
+  46          
+  47          // uint16_t user_fifo_get_r_point(){
+  48          //     return user_fifo.r;
+  49          // }
+  50          
+  51          // uint16_t user_fifo_get_w_point(){
+  52          //     return user_fifo.w;
+  53          // }
+  54          
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 2   
 
-  55   1      }
-  56          
-  57          
+  55          // uint16_t user_fifo_get_number_bytes_written(){
+  56          //     return user_fifo.num_bytes_written;
+  57          // }
+  58          
+  59          void user_fifo_init_t(user_fifo_t* u){
+  60   1        if(u->is_init == 1){
+  61   2              return;
+  62   2          }
+  63   1          u->num_bytes_written = u->r = u->w = 0;
+  64   1          u->is_init = 1;
+  65   1      }
+  66          
+  67          uint8_t user_fifo_pop_t(user_fifo_t* u){
+  68   1          uint8_t temp;
+  69   1          if(u->num_bytes_written == 0){
+  70   2              return 0xff;
+  71   2          }
+  72   1          temp = u->dt[u->r];
+  73   1          u->r = u->r + 1;
+  74   1          if(u->r == MAX_QUEUE_LEN){
+  75   2              u->r = 0;
+  76   2          }
+  77   1          u->num_bytes_written = u->num_bytes_written - 1;
+  78   1          return temp;
+  79   1      }
+  80          
+  81          void user_fifo_push_t(user_fifo_t* u, uint8_t d){
+  82   1          if(u->num_bytes_written == MAX_QUEUE_LEN){
+  83   2              return;
+  84   2          }
+  85   1          u->dt[u->w] = d;
+  86   1          u->w = u->w + 1;
+  87   1          if(u->w == MAX_QUEUE_LEN){
+  88   2              u->w = 0;
+  89   2          }
+  90   1          u->num_bytes_written = u->num_bytes_written + 1;
+  91   1      }
+  92          uint8_t user_fifo_get_t(user_fifo_t* u, uint16_t loc){
+  93   1          return u->dt[loc];
+  94   1      }
+  95          
+  96          void user_fifo_reset_t(user_fifo_t* u){
+  97   1          u->num_bytes_written = u->r = u->w = 0;
+  98   1      }
+  99          
+ 100          uint16_t user_fifo_get_r_point_t(user_fifo_t* u){
+ 101   1          return u->r;
+ 102   1      }
+ 103          
+ 104          uint16_t user_fifo_get_w_point_t(user_fifo_t* u){
+ 105   1          return u->w;
+ 106   1      }
+ 107          
+ 108          uint16_t user_fifo_get_number_bytes_written_t(user_fifo_t* u){
+ 109   1          return u->num_bytes_written;
+ 110   1      }
+ 111          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    246    ----
+   CODE SIZE        =    390    ----
    CONSTANT SIZE    =   ----    ----
-   XDATA SIZE       =   2055    ----
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 3   
+
+   XDATA SIZE       =   2062       6
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----

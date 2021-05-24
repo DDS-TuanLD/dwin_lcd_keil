@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/08/2021 13:18:32 PAGE 1   
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE UART_HANDLER
@@ -50,7 +50,7 @@ line level    source
   40   1        scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
   41   1        count = count + 1;
   42   1        
-  43   1        scall_uart_send_dt[3] = UART_TYPE_CMD;
+  43   1        scall_uart_send_dt[3] = ack;
   44   1        count = count + 1;
   45   1      
   46   1        scall_uart_send_dt[4] = LCD_CALL_SCENE_CMD >> 8;
@@ -62,7 +62,7 @@ line level    source
   52   1        scall_uart_send_dt[6] = 0x01;
   53   1        count = count + 1;
   54   1      
-C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/08/2021 13:18:32 PAGE 2   
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 2   
 
   55   1        scall_uart_send_dt[7] = btn;
   56   1        count = count + 1;
@@ -82,12 +82,12 @@ line level    source
   70   1        lcd_scene_call_send_uart(dt[1], ack);
   71   1      }
   72          
-  73          void lcd_send_scene_call_uart_process(){
+  73          void lcd_send_uart_cmd_process(){
   74   1        ReadDGUS(LCD_CALL_SCENE_ADR, scene_call, 2);
   75   1        if(scene_call[1] == 0){
   76   2          
   77   2        }else{
-  78   2          lcd_scene_call_handler(scene_call, UART_TYPE_CMD);
+  78   2          lcd_scene_call_handler(scene_call, UART_TYPE_FEEDBACK);
   79   2          WriteDGUS(LCD_CALL_SCENE_ADR, reset_data, 2);
   80   2        }
   81   1        
@@ -95,178 +95,264 @@ line level    source
   83   1        if((reset_module[0] == 0) && (reset_module[1] == 0)){
   84   2        
   85   2        }else{
-  86   2          lcd_send_reset_cmd_to_module();
-  87   2          reset_module[0] = reset_module[1] = 0;
-  88   2          WriteDGUS(LCD_RESET_MODULE_ADR, reset_module, 2);
-  89   2        }
-  90   1        return;
-  91   1      }
-  92          
-  93          uint16_t get_valid_data_header_loc(){
-  94   1        uint16_t count = 0;
-  95   1        uint16_t i = 0;
-  96   1        uint16_t i1;
-  97   1        uint16_t i2;
-  98   1        uint16_t i3;
-  99   1        uint16_t r_point = user_fifo_get_r_point();
- 100   1        while (count <= user_fifo_get_number_bytes_written())
- 101   1        {
- 102   2          i1 = (i + r_point);
- 103   2          i2 = (i + r_point + 1);
- 104   2          i3 = (i + r_point + 2);
- 105   2          if(i1 > MAX_QUEUE_LEN -1){
- 106   3            i1 = i1 - MAX_QUEUE_LEN;
- 107   3          }
- 108   2          if(i2 > MAX_QUEUE_LEN -1){
- 109   3            i2 = i2 - MAX_QUEUE_LEN;
- 110   3          }if(i1 > MAX_QUEUE_LEN -1){
- 111   3            i3 = i3 - MAX_QUEUE_LEN;
- 112   3          }
- 113   2          if((user_fifo_get(i1) == UART_HEADER_DATA_0) && (user_fifo_get(i2) == UART_HEADER_DATA_0) && (user_fifo_
-             -get(i3) == UART_HMI_TO_MODULE) && (i1 != r_point)){
- 114   3            return i;
- 115   3          }
-C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/08/2021 13:18:32 PAGE 3   
+  86   2          lcd_send_reset_cmd_to_module(UART_TYPE_FEEDBACK);
+  87   2          WriteDGUS(LCD_RESET_MODULE_ADR, reset_data, 2);
+  88   2        }
+  89   1        return;
+  90   1      }
+  91          
+  92          uint16_t get_valid_data_header_loc(){
+  93   1        uint16_t count = 0;
+  94   1        uint16_t i = 0;
+  95   1        uint16_t i1;
+  96   1        uint16_t i2;
+  97   1        uint16_t i3;
+  98   1        uint16_t r_point = user_fifo_get_r_point_t(&user_fifo);
+  99   1        while (count <= user_fifo_get_number_bytes_written_t(&user_fifo))
+ 100   1        {
+ 101   2          i1 = (i + r_point);
+ 102   2          i2 = (i + r_point + 1);
+ 103   2          i3 = (i + r_point + 2);
+ 104   2          if(i1 > MAX_QUEUE_LEN -1){
+ 105   3            i1 = i1 - MAX_QUEUE_LEN;
+ 106   3          }
+ 107   2          if(i2 > MAX_QUEUE_LEN -1){
+ 108   3            i2 = i2 - MAX_QUEUE_LEN;
+ 109   3          }if(i1 > MAX_QUEUE_LEN -1){
+ 110   3            i3 = i3 - MAX_QUEUE_LEN;
+ 111   3          }
+ 112   2          if((user_fifo_get_t(&user_fifo, i1) == UART_HEADER_DATA_0) && (user_fifo_get_t(&user_fifo, i2) == UART_H
+             -EADER_DATA_0) && (user_fifo_get_t(&user_fifo, i3) == UART_HMI_TO_MODULE) && (i1 != r_point)){
+ 113   3            return i;
+ 114   3          }
+ 115   2          i = i + 1;
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 3   
 
- 116   2          i = i + 1;
- 117   2          count = count + 1;
- 118   2          if(i == MAX_QUEUE_LEN){
- 119   3            i = 0;
- 120   3          }
- 121   2        }
- 122   1        return 0xffff;
- 123   1      }
- 124          
- 125          int is_reiv_data_valid(uint8_t *dt, uint16_t len){
- 126   1        if((dt[0] == UART_HEADER_DATA_0) && (dt[1] == UART_HEADER_DATA_1) && (dt[2] == UART_MODULE_TO_HMI) && (dt
+ 116   2          count = count + 1;
+ 117   2          if(i == MAX_QUEUE_LEN){
+ 118   3            i = 0;
+ 119   3          }
+ 120   2        }
+ 121   1        return 0xffff;
+ 122   1      }
+ 123          
+ 124          int is_reiv_data_valid(uint8_t *dt, uint16_t len){
+ 125   1        if((dt[0] == UART_HEADER_DATA_0) && (dt[1] == UART_HEADER_DATA_1) && (dt[2] == UART_MODULE_TO_HMI) && (dt
              -[len-1] == create_crc_check(dt))){
- 127   2          return 1;
- 128   2        }
- 129   1        return 0;
- 130   1      }
- 131          
- 132          void parse_uart_data(uart_parse_data *p_data, uint8_t *dt){
- 133   1        int i;
- 134   1        int j = 0;
- 135   1        p_data->dt_len = dt[6];
- 136   1        for(i = 7; i< 7 + dt[6]; i++){
- 137   2          p_data->dt[j] = dt[i];
- 138   2          j = j + 1;
- 139   2        } 
- 140   1        return;
- 141   1      }
- 142          
- 143          void uart_data_handler(uint8_t *dt, uint16_t len){
- 144   1        uint16_t act_reiv = dt[4] << 8 | dt[5];
- 145   1        uart_parse_data p_data = {0};
- 146   1        if(is_uart_mess_response_waiting()){
- 147   2          uint16_t temp = uart_last_mess_sent.dt[4] << 8 | uart_last_mess_sent.dt[5];
- 148   2          if(!is_reiv_data_valid(dt, len)){
- 149   3            Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
- 150   3            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
- 151   3            if(uart_last_mess_sent.sent_count > 5){
- 152   4              uart_last_mess_sent.flag = 0;
- 153   4              uart_last_mess_sent.sent_count = 0;
- 154   4            }
- 155   3            return;
- 156   3          }
- 157   2          if((temp == act_reiv) && (dt[3] == UART_TYPE_RES) && (len == uart_last_mess_sent.len)){
- 158   3            uart_last_mess_sent.flag = 0;
- 159   3            uart_last_mess_sent.sent_count = 0;
- 160   3          }else{
- 161   3            Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
- 162   3            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
- 163   3            if(uart_last_mess_sent.sent_count > 5){
- 164   4              uart_last_mess_sent.flag = 0;
- 165   4              uart_last_mess_sent.sent_count = 0;
- 166   4            }
- 167   3          }
- 168   2          return;
- 169   2        }else{
- 170   2          uint16_t humi;
- 171   2          uint8_t time_data[2] = {0};
- 172   2          uint8_t temp_data[2] = {0};
- 173   2          uint8_t humi_data[2] = {0};
- 174   2          if(!is_reiv_data_valid(dt, len)){
- 175   3            return;
- 176   3          }
-C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/08/2021 13:18:32 PAGE 4   
+ 126   2          return 1;
+ 127   2        }
+ 128   1        return 0;
+ 129   1      }
+ 130          
+ 131          void parse_uart_data(uart_parse_data *p_data, uint8_t *dt){
+ 132   1        int i;
+ 133   1        int j = 0;
+ 134   1        p_data->dt_len = dt[6];
+ 135   1        for(i = 7; i< 7 + dt[6]; i++){
+ 136   2          p_data->dt[j] = dt[i];
+ 137   2          j = j + 1;
+ 138   2        } 
+ 139   1        return;
+ 140   1      }
+ 141          
+ 142          void uart_data_handler(uint8_t *dt, uint16_t len){
+ 143   1        uint16_t act_reiv = dt[4] << 8 | dt[5];
+ 144   1        uart_parse_data p_data = {0};
+ 145   1        if(is_uart_mess_response_waiting()){
+ 146   2          uint16_t temp = uart_last_mess_sent.dt[4] << 8 | uart_last_mess_sent.dt[5];
+ 147   2          if(!is_reiv_data_valid(dt, len)){
+ 148   3            Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+ 149   3            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
+ 150   3            if(uart_last_mess_sent.sent_count > 5){
+ 151   4              uart_last_mess_sent.flag = 0;
+ 152   4              uart_last_mess_sent.sent_count = 0;
+ 153   4            }
+ 154   3            return;
+ 155   3          }
+ 156   2          if((temp == act_reiv) && (dt[3] == UART_TYPE_NOFEEDBACK) && (len == uart_last_mess_sent.len)){
+ 157   3            uart_last_mess_sent.flag = 0;
+ 158   3            uart_last_mess_sent.sent_count = 0;
+ 159   3          }else{
+ 160   3            Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+ 161   3            uart_last_mess_sent.sent_count = uart_last_mess_sent.sent_count + 1;
+ 162   3            if(uart_last_mess_sent.sent_count > 5){
+ 163   4              uart_last_mess_sent.flag = 0;
+ 164   4              uart_last_mess_sent.sent_count = 0;
+ 165   4            }
+ 166   3          }
+ 167   2          return;
+ 168   2        }else{
+ 169   2          uint8_t time_data[2] = {0};
+ 170   2          uint8_t time_h[1];
+ 171   2          uint8_t time_m[1];
+ 172   2          
+ 173   2          uint8_t temp_data[2] = {0};
+ 174   2          
+ 175   2          uint16_t humi;
+ 176   2          uint8_t humi_data[2] = {0};
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 4   
 
- 177   2          if(dt[3] == UART_TYPE_CMD){
- 178   3            dt[2] = UART_HMI_TO_MODULE;
- 179   3            dt[3] = UART_TYPE_RES;
- 180   3            dt[len - 1] = create_crc_check(dt);
- 181   3            Uart2SendStr(dt, len);
- 182   3          }
- 183   2        
- 184   2          parse_uart_data(&p_data, dt);
- 185   2          switch (act_reiv){
- 186   3            case LCD_UPDATE_SENSOR_PARA_CMD :
- 187   3              humi = p_data.dt[2] << 8 | p_data.dt[3];
- 188   3              temp_data[0] = p_data.dt[0];
- 189   3              temp_data[1] = p_data.dt[1];
- 190   3              humi_data[0] = humi/10;
- 191   3              humi_data[1] = humi%10;
- 192   3              WriteDGUS(LCD_UPDATE_TEM_ADR, temp_data, 2);
- 193   3              WriteNorFlash(LCD_TEM_SAVE_ADR, LCD_UPDATE_TEM_ADR, 2);
- 194   3              WriteDGUS(LCD_UPDATE_HUM_ADR, humi_data, 2);
- 195   3              WriteNorFlash(LCD_HUM_SAVE_ADR, LCD_UPDATE_HUM_ADR, 2);       
- 196   3              break;
- 197   3            case LCD_UPDTE_TIME_CMD : 
- 198   3              time_data[0] = p_data.dt[0];
- 199   3              time_data[1] = p_data.dt[1];
- 200   3              WriteDGUS(LCD_UPDTE_TIME_ADR, time_data, 2);
- 201   3              WriteNorFlash(LCD_TIM_SAVE_ADR, LCD_UPDTE_TIME_ADR, 2);
- 202   3              break;
- 203   3            default:
- 204   3              break;
- 205   3          }
- 206   2        }
- 207   1        return;
- 208   1      }
- 209          
- 210          void lcd_send_reset_cmd_to_module(){
- 211   1          uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
- 212   1        int count = 0;
- 213   1      
- 214   1        scall_uart_send_dt[0] = UART_HEADER_DATA_0;
- 215   1        count = count + 1;
- 216   1      
- 217   1        scall_uart_send_dt[1] = UART_HEADER_DATA_1;
- 218   1        count = count + 1;
- 219   1        
- 220   1        scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
- 221   1        count = count + 1;
- 222   1        
- 223   1        scall_uart_send_dt[3] = UART_TYPE_CMD;
- 224   1        count = count + 1;
- 225   1      
- 226   1        scall_uart_send_dt[4] = LCD_RESET_MODULE_CMD >> 8;
- 227   1        count = count + 1;
- 228   1      
- 229   1        scall_uart_send_dt[5] = LCD_RESET_MODULE_CMD & 0x00ff;
- 230   1        count = count + 1;
- 231   1      
- 232   1        scall_uart_send_dt[6] = 0x00;
- 233   1        count = count + 1;
- 234   1      
- 235   1        scall_uart_send_dt[8] = create_crc_check(scall_uart_send_dt);
- 236   1        count = count + 1;
- 237   1        
- 238   1        t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
-C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/08/2021 13:18:32 PAGE 5   
+ 177   2          if(!is_reiv_data_valid(dt, len)){
+ 178   3            return;
+ 179   3          }
+ 180   2          if(dt[3] == UART_TYPE_FEEDBACK){
+ 181   3            dt[2] = UART_HMI_TO_MODULE;
+ 182   3            dt[3] = UART_TYPE_NOFEEDBACK;
+ 183   3            dt[len - 1] = create_crc_check(dt);
+ 184   3            Uart2SendStr(dt, len);
+ 185   3          }
+ 186   2        
+ 187   2          parse_uart_data(&p_data, dt);
+ 188   2          switch (act_reiv){
+ 189   3            case LCD_UPDATE_SENSOR_PARA_CMD :
+ 190   3              humi = p_data.dt[2] << 8 | p_data.dt[3];
+ 191   3              temp_data[0] = p_data.dt[0];
+ 192   3              temp_data[1] = p_data.dt[1];
+ 193   3              humi_data[0] = humi/10;
+ 194   3              humi_data[1] = humi%10;
+ 195   3              WriteDGUS(LCD_UPDATE_TEM_ADR, temp_data, 2);
+ 196   3              WriteNorFlash(LCD_TEM_SAVE_ADR, LCD_UPDATE_TEM_ADR, 2);
+ 197   3              WriteDGUS(LCD_UPDATE_HUM_ADR, humi_data, 2);
+ 198   3              WriteNorFlash(LCD_HUM_SAVE_ADR, LCD_UPDATE_HUM_ADR, 2);       
+ 199   3              break;
+ 200   3            case LCD_UPDTE_TIME_CMD : 
+ 201   3            
+ 202   3              time_data[0] = p_data.dt[0];
+ 203   3              time_data[1] = p_data.dt[1];
+ 204   3              WriteDGUS(LCD_UPDTE_TIME_ADR, time_data, 2);
+ 205   3              WriteNorFlash(LCD_TIM_SAVE_ADR, LCD_UPDTE_TIME_ADR, 2);
+ 206   3              lcd_real_time.h = time_h[0] = time_data[0];
+ 207   3              lcd_real_time.m = time_m[0] = time_data[1];
+ 208   3              WriteDGUS(LCD_DISPLAY_TIME_H_ADR, time_h, 1);
+ 209   3              WriteDGUS(LCD_DISPLAY_TIME_M_ADR, time_m, 1);
+ 210   3              break;
+ 211   3            default:
+ 212   3              break;
+ 213   3          }
+ 214   2        }
+ 215   1        return;
+ 216   1      }
+ 217          
+ 218          void lcd_send_reset_cmd_to_module(uint8_t ack){
+ 219   1          uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
+ 220   1        int count = 0;
+ 221   1      
+ 222   1        scall_uart_send_dt[0] = UART_HEADER_DATA_0;
+ 223   1        count = count + 1;
+ 224   1      
+ 225   1        scall_uart_send_dt[1] = UART_HEADER_DATA_1;
+ 226   1        count = count + 1;
+ 227   1        
+ 228   1        scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
+ 229   1        count = count + 1;
+ 230   1        
+ 231   1        scall_uart_send_dt[3] = ack;
+ 232   1        count = count + 1;
+ 233   1      
+ 234   1        scall_uart_send_dt[4] = LCD_RESET_MODULE_CMD >> 8;
+ 235   1        count = count + 1;
+ 236   1      
+ 237   1        scall_uart_send_dt[5] = LCD_RESET_MODULE_CMD & 0x00ff;
+ 238   1        count = count + 1;
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 5   
 
- 239   1        uart_last_mess_sent.len = count;
- 240   1        uart_last_mess_sent.flag = 0x01;
- 241   1        
- 242   1        Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
- 243   1      }
+ 239   1      
+ 240   1        scall_uart_send_dt[6] = 0x00;
+ 241   1        count = count + 1;
+ 242   1      
+ 243   1        scall_uart_send_dt[7] = create_crc_check(scall_uart_send_dt);
+ 244   1        count = count + 1;
+ 245   1        
+ 246   1        t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
+ 247   1        uart_last_mess_sent.len = count;
+ 248   1        uart_last_mess_sent.flag = ack;
+ 249   1        
+ 250   1        Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+ 251   1      }
+ 252          
+ 253          void lcd_send_relay_control_cmd(uint8_t relay, uint8_t mod, uint8_t ack){
+ 254   1        uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
+ 255   1        int count = 0;
+ 256   1      
+ 257   1        scall_uart_send_dt[0] = UART_HEADER_DATA_0;
+ 258   1        count = count + 1;
+ 259   1      
+ 260   1        scall_uart_send_dt[1] = UART_HEADER_DATA_1;
+ 261   1        count = count + 1;
+ 262   1        
+ 263   1        scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
+ 264   1        count = count + 1;
+ 265   1        
+ 266   1        scall_uart_send_dt[3] = ack;
+ 267   1        count = count + 1;
+ 268   1      
+ 269   1        scall_uart_send_dt[4] = LCD_SEND_RELAY_CMD >> 8;
+ 270   1        count = count + 1;
+ 271   1      
+ 272   1        scall_uart_send_dt[5] = LCD_SEND_RELAY_CMD & 0x00ff;
+ 273   1        count = count + 1;
+ 274   1      
+ 275   1        scall_uart_send_dt[6] = 0x02;
+ 276   1        count = count + 1;
+ 277   1      
+ 278   1        scall_uart_send_dt[7] = relay;
+ 279   1        count = count + 1;
+ 280   1        
+ 281   1        scall_uart_send_dt[8] = mod;
+ 282   1        count = count + 1;
+ 283   1      
+ 284   1        scall_uart_send_dt[9] = create_crc_check(scall_uart_send_dt);
+ 285   1        count = count + 1;
+ 286   1        
+ 287   1        t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
+ 288   1        uart_last_mess_sent.len = count;
+ 289   1        uart_last_mess_sent.flag = 0x01;
+ 290   1        
+ 291   1        Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+ 292   1      }
+ 293          
+ 294          void lcd_send_update_time_mess(uint8_t ack){
+ 295   1        uint8_t scall_uart_send_dt[UART_DATA_MAX_LEN] = {0};
+ 296   1        int count = 0;
+ 297   1      
+ 298   1        scall_uart_send_dt[0] = UART_HEADER_DATA_0;
+ 299   1        count = count + 1;
+ 300   1      
+C51 COMPILER V9.57.0.0   UART_HANDLER                                                      05/24/2021 15:15:43 PAGE 6   
+
+ 301   1        scall_uart_send_dt[1] = UART_HEADER_DATA_1;
+ 302   1        count = count + 1;
+ 303   1        
+ 304   1        scall_uart_send_dt[2] = UART_HMI_TO_MODULE;
+ 305   1        count = count + 1;
+ 306   1        
+ 307   1        scall_uart_send_dt[3] = ack;
+ 308   1        count = count + 1;
+ 309   1      
+ 310   1        scall_uart_send_dt[4] = LCD_REQUEST_TIME_CMD >> 8;
+ 311   1        count = count + 1;
+ 312   1      
+ 313   1        scall_uart_send_dt[5] = LCD_REQUEST_TIME_CMD & 0x00ff;
+ 314   1        count = count + 1;
+ 315   1      
+ 316   1        scall_uart_send_dt[6] = 0x00;
+ 317   1        count = count + 1;
+ 318   1      
+ 319   1        scall_uart_send_dt[7] = create_crc_check(scall_uart_send_dt);
+ 320   1        count = count + 1;
+ 321   1        
+ 322   1        t_strcpy(uart_last_mess_sent.dt, scall_uart_send_dt, count);
+ 323   1        uart_last_mess_sent.len = count;
+ 324   1        uart_last_mess_sent.flag = 0x01;
+ 325   1        
+ 326   1        Uart2SendStr(uart_last_mess_sent.dt, uart_last_mess_sent.len);
+ 327   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   1968    ----
-   CONSTANT SIZE    =     89    ----
-   XDATA SIZE       =     41     136
+   CODE SIZE        =   2654    ----
+   CONSTANT SIZE    =    149    ----
+   XDATA SIZE       =     41     207
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
