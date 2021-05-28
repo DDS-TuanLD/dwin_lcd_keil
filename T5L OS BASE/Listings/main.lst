@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   MAIN                                                              05/24/2021 15:15:42 PAGE 1   
+C51 COMPILER V9.57.0.0   MAIN                                                              05/28/2021 12:49:36 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MAIN
@@ -17,7 +17,7 @@ line level    source
    7          #include <stdio.h>
    8          #include "user_fifo.h"
    9          #include "lcd_handler.h"
-  10          
+  10          #include <stdlib.h>
   11          // setting some input parameter
   12          void lcd_sys_begin_set(){
   13   1      //  uint8_t led_on[2]={0x00, 0x08};
@@ -43,28 +43,29 @@ line level    source
   33          
   34          void main(void)
   35          {
-  36   1        InitCPU();
-  37   1        user_fifo_init_t(&user_fifo);
-  38   1        user_fifo_init_t(&uart_4_fifo);
-  39   1        lcd_request_time_update();
-  40   1        lcd_sys_begin_set();
-  41   1        lcd_para_init();
-  42   1        while(1)
-  43   1        {
-  44   2          lcd_handler_uart_data_reiv_process();
-  45   2          lcd_send_uart_data_process();
-  46   2          lcd_update_home_para();
-  47   2          real_time_run();
-  48   2        }
-  49   1      }
+  36   1        uint8_t *t = (uint8_t *)malloc(1);
+  37   1        InitCPU();
+  38   1        user_fifo_init_t(&user_fifo);
+  39   1        user_fifo_init_t(&uart_4_fifo);
+  40   1        lcd_request_time_update();
+  41   1        lcd_sys_begin_set();
+  42   1        lcd_para_init();
+  43   1        while(1)
+  44   1        {
+  45   2          lcd_handler_uart_data_reiv_process();
+  46   2          lcd_send_uart_data_process();
+  47   2          lcd_update_home_para();
+  48   2          real_time_run();
+  49   2        }
+  50   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    208    ----
-   CONSTANT SIZE    =     12    ----
-C51 COMPILER V9.57.0.0   MAIN                                                              05/24/2021 15:15:42 PAGE 2   
+   CODE SIZE        =    231    ----
+C51 COMPILER V9.57.0.0   MAIN                                                              05/28/2021 12:49:36 PAGE 2   
 
-   XDATA SIZE       =   ----      12
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =   ----      15
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----

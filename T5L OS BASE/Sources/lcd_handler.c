@@ -59,6 +59,11 @@ void lcd_handler_uart_data_reiv_process(){
 	return;
 }
 
+void lcd_pic_set(uint8_t pic_id){
+	uint8_t dt[4] = {0x5a, 0x01, 0x00, pic_id};
+	WriteDGUS(0x0084, dt, 4);
+}
+
 void lcd_update_temp(){
 	uint8_t temp_data[2] = {0};
 	uint16_t temp;

@@ -1,4 +1,4 @@
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 1   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/28/2021 12:49:36 PAGE 1   
 
 
 C51 COMPILER V9.57.0.0, COMPILATION OF MODULE USER_FIFO
@@ -62,7 +62,7 @@ line level    source
   52          //     return user_fifo.w;
   53          // }
   54          
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 2   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/28/2021 12:49:36 PAGE 2   
 
   55          // uint16_t user_fifo_get_number_bytes_written(){
   56          //     return user_fifo.num_bytes_written;
@@ -126,7 +126,7 @@ line level    source
 MODULE INFORMATION:   STATIC OVERLAYABLE
    CODE SIZE        =    390    ----
    CONSTANT SIZE    =   ----    ----
-C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/24/2021 15:15:43 PAGE 3   
+C51 COMPILER V9.57.0.0   USER_FIFO                                                         05/28/2021 12:49:36 PAGE 3   
 
    XDATA SIZE       =   2062       6
    PDATA SIZE       =   ----    ----

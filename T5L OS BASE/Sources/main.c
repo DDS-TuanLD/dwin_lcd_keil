@@ -1,13 +1,12 @@
 
 #include "T5LOS8051.H"
 #include "sys.h"
-#include <rtx51tny.h>
 #include "uart.h"
 #include "dgus.h"
 #include <stdio.h>
 #include "user_fifo.h"
 #include "lcd_handler.h"
-
+#include <stdlib.h>
 // setting some input parameter
 void lcd_sys_begin_set(){
 //	uint8_t led_on[2]={0x00, 0x08};
